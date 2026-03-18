@@ -1,36 +1,36 @@
 package com.metric.analyst.agent.controller;
 
-import com.metric.analyst.agent.agent.MetricAnalystAgent;
+import com.metric.analyst.agent.agents.SupervisorAgent;
 import com.metric.analyst.agent.tools.MetricQueryTools;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 指标分析 API - 简化版
+ * 指标分析 API - 多智能体版本
  */
 @RestController
 @RequestMapping("/api")
 public class AnalystController {
 
-    private final MetricAnalystAgent analystAgent;
+    private final SupervisorAgent supervisorAgent;
     private final MetricQueryTools queryTools;
 
-    public AnalystController(MetricAnalystAgent analystAgent, 
+    public AnalystController(SupervisorAgent supervisorAgent, 
                             MetricQueryTools queryTools) {
-        this.analystAgent = analystAgent;
+        this.supervisorAgent = supervisorAgent;
         this.queryTools = queryTools;
     }
 
     /**
-     * AI 对话接口 - 自然语言查询
-     * GET /api/chat?input=北京最近招聘数量是多少
+     * AI 对话接口 - 多智能体协调处理
+     * GET /api/chat?input=北京招聘数量是多少
      */
     @GetMapping("/chat")
     public String chat(@RequestParam String input) {
-        return analystAgent.chat(input);
+        return supervisorAgent.handle(input);
     }
 
     /**
-     * 直接工具调用接口
+     * 直接工具调用接口（保留用于精确控制）
      */
     @GetMapping("/query/single")
     public String querySingle(@RequestParam String metric, @RequestParam String region) {
@@ -57,6 +57,6 @@ public class AnalystController {
 
     @GetMapping("/health")
     public String health() {
-        return "OK - Metric Analyst Agent is running";
+        return "OK - Metric Analyst Multi-Agent System is running";
     }
 }
