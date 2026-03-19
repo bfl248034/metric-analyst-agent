@@ -1,47 +1,58 @@
+server:
+  port: 8080
+
 spring:
   application:
     name: metric-analyst-agent
 
-  # MySQL 数据库配置
+  # 数据源配置
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/metric_analyst?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8mb4
-    username: ${MYSQL_USER:root}
+    url: jdbc:mysql://localhost:3306/metric_analyst?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: root
     password: ${MYSQL_PASSWORD:password}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
       minimum-idle: 5
       connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
 
+  # JPA配置
   jpa:
     hibernate:
-      ddl-auto: validate  # 生产环境使用validate，不自动创建表
-    show-sql: false
+      ddl-auto: validate  # 生产环境使用validate，不自动修改表结构
+    show-sql: true
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
 
+  # AI配置
   ai:
-    # DashScope (通义千问) 配置
     dashscope:
-      api-key: ${AI_DASHSCOPE_API_KEY}
+      api-key: ${DASHSCOPE_API_KEY:your-api-key}
       chat:
         options:
           model: qwen-turbo
           temperature: 0.7
-          max-tokens: 2000
-
-# 服务器配置
-server:
-  port: 8080
 
 # 日志配置
 logging:
   level:
     com.metric.analyst.agent: DEBUG
-    com.alibaba.cloud.ai: INFO
+    org.springframework.ai: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# 应用配置
+app:
+  # 向量检索配置
+  vector:
+    enabled: true
+    top-k: 10
+  # 意图分类配置
+  intent:
+    classification-enabled: true
+  # 指标识别配置
+  recognition:
+    confidence-threshold: 0.6
+    high-confidence: 0.8

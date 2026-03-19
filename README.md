@@ -1,215 +1,135 @@
-# Metric Analyst Agent
+# Metric Analyst Agent - 数据分析智能体
 
-基于 Spring AI Alibaba Agent Framework 的指标分析多智能体系统。
+基于 Spring AI Alibaba 构建的企业级多智能体分析平台。
 
-## 技术栈
-
-- **框架**: Spring Boot 3.2.5 + Spring AI Alibaba 1.1.2.1
-- **Agent 框架**: Spring AI Alibaba Agent Framework (ReactAgent, SupervisorAgent)
-- **数据库**: MySQL 8.0 (开发环境可使用 H2)
-- **JDK**: Java 21
-
-## 架构设计
-
-### 多智能体架构
+## 项目架构
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│              MetricAnalystOrchestrator                      │
-│                 (Supervisor Agent)                          │
-│                     指标分析主管                              │
-└────────────────────┬────────────────────────────────────────┘
-                     │ 协调调度
-        ┌────────────┼────────────┐
-        ▼            ▼            ▼
-┌──────────────┐ ┌──────────┐ ┌──────────────┐
-│ metric_query │ │ insight  │ │   report     │
-│   _expert    │ │ _analyst │ │  _generator  │
-│  指标查询专家  │ │ 洞察分析  │ │  报告生成    │
-└──────────────┘ └──────────┘ └──────────────┘
-        │            │            │
-        └────────────┼────────────┘
-                     ▼
-        ┌────────────────────────┐
-        │   MetricQueryTools     │
-        │    (@Tool 注解工具)     │
-        │  - queryMetricCurrentValue
-        │  - queryMetricComparison
-        │  - queryMetricTrend
-        │  - queryMetricRanking
-        └────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    用户交互层                            │
+│   AnalystController (REST API)                          │
+└──────────────────┬──────────────────────────────────────┘
+                   │
+┌──────────────────▼──────────────────────────────────────┐
+│           数据分析智能体（MetricAnalystAgent）           │
+│   基于 Spring AI Alibaba Skills + Hooks 构建            │
+│                                                          │
+│   Stage 0: 意图分类（闲聊识别）                          │
+│   Stage 1: 指标识别（BM25+向量+大模型精排）               │
+│   Stage 2: 维度标准化（时间/地区/默认值）                 │
+│   Stage 3: 数据查询（预聚合数据）                        │
+│   Stage 4: 结果加工 + 洞察生成                           │
+└────────┬────────────────────────────────────────────────┘
+         │
+┌────────▼────────────────────────────────────────────────┐
+│              共享基础设施层                               │
+│   - DashScope (通义千问)                                  │
+│   - MySQL (数据+元数据)                                   │
+│   - Java内存 (向量+同义词索引)                            │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### 核心特性
+## 核心功能
 
-1. **ReactAgent 模式**: 基于 ReAct (Reasoning + Acting) 的智能体架构
-2. **工具调用**: 使用 `@Tool` 注解定义工具，支持自动 JSON Schema 生成
-3. **Supervisor 模式**: 主管智能体动态路由请求到合适的专家智能体
-4. **记忆管理**: 使用 `MemorySaver` 维护对话上下文
-5. **多模型支持**: 支持 DashScope (通义千问) 和 OpenAI 兼容接口
+### 1. 五阶段处理流程
+
+| 阶段 | 组件 | 功能 |
+|------|------|------|
+| 0 | IntentClassificationService | 闲聊识别，关键词匹配 |
+| 1 | IndicatorRecognitionService | 两阶段指标识别 |
+| 2 | DimensionNormalizationService | 维度标准化 |
+| 3 | DataQueryService | 数据查询 |
+| 4 | MetricAnalystAgent | 洞察生成 |
+
+### 2. 指标识别两阶段
+
+- **召回阶段**: BM25(MySQL) + 向量相似度(Java内存) + 同义词倒排(HashMap)
+- **精排阶段**: 大模型语义理解
+
+### 3. 维度处理三规则
+
+| 维度 | 处理方式 |
+|------|---------|
+| 地区 | 模型识别名称 → 后端编码；关键词"各省份"→region_level |
+| 时间 | 动态计算：latest/last:N/具体日期；超范围自动降级 |
+| 其他 | 默认值填充（db_data_dimension.default_value） |
 
 ## 快速开始
 
-### 1. 数据库准备
-
-#### MySQL (生产环境)
+### 1. 数据库初始化
 
 ```bash
-# 创建数据库
-mysql -u root -p -e "CREATE DATABASE metric_analyst CHARACTER SET utf8mb4;"
-
-# 执行初始化脚本
-mysql -u root -p metric_analyst < src/main/resources/sql/init-mysql.sql
+mysql -u root -p < src/main/resources/db/schema.sql
 ```
-
-#### H2 (本地开发)
-
-默认使用 H2 内存数据库，无需额外配置。
 
 ### 2. 配置环境变量
 
 ```bash
-# DashScope API Key (通义千问)
-export AI_DASHSCOPE_API_KEY=your-dashscope-api-key
-
-# MySQL 配置 (生产环境)
-export MYSQL_HOST=localhost
-export MYSQL_PORT=3306
-export MYSQL_USER=root
+export DASHSCOPE_API_KEY=your-api-key
 export MYSQL_PASSWORD=your-password
 ```
 
-### 3. 运行应用
+### 3. 运行项目
 
 ```bash
-# 本地开发模式 (使用 H2 数据库)
-./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+mvn spring-boot:run
+```
 
-# 生产模式 (使用 MySQL)
-./mvnw spring-boot:run
+### 4. 测试接口
+
+```bash
+# 健康检查
+curl http://localhost:8080/api/health
+
+# 对话接口
+curl "http://localhost:8080/api/chat?input=北京招聘薪资"
+
+# 获取领域列表
+curl http://localhost:8080/api/domains
 ```
 
 ## API 接口
 
-### 智能对话接口
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| /api/chat | GET | 智能体对话 |
+| /api/domains | GET | 获取可查询领域 |
+| /api/health | GET | 健康检查 |
 
-```bash
-# 主管 Agent 自动路由处理
-GET /api/chat?input=北京招聘数量是多少
+## 数据模型
 
-# 带会话ID的多轮对话
-GET /api/chat?input=那上海呢&threadId=user_123
-```
+### 核心表
 
-### 直接调用专家 Agent
+- `db_indicator`: 指标元数据
+- `dimension_values`: 维度值定义
+- `db_data_dimension`: 维度关联配置
+- `indicator_fact`: 指标事实数据（预聚合）
 
-```bash
-# 指标查询专家
-GET /api/query?input=北京招聘数量
+## 技术栈
 
-# 洞察分析专家
-GET /api/analyze?input=分析一下趋势
-
-# 报告生成专家
-GET /api/report?input=生成招聘市场分析报告
-```
-
-### 工具调用接口
-
-```bash
-# 查询单个指标
-GET /api/tools/single?metric=招聘数量&region=北京
-
-# 多地区对比
-GET /api/tools/compare?metric=招聘数量&regions=北京,上海,杭州
-
-# 查询趋势
-GET /api/tools/trend?metric=招聘数量&region=北京&months=6
-
-# 查询排名
-GET /api/tools/ranking?metric=招聘数量&topN=5
-
-# 提取维度信息
-GET /api/tools/extract?input=北京招聘数量多少
-```
-
-### 系统接口
-
-```bash
-# 健康检查
-GET /api/health
-
-# 获取可用 Agent 列表
-GET /api/agents
-```
+- Spring Boot 3.2.5
+- Spring AI Alibaba 1.1.2.1
+- MySQL 8.0
+- DashScope (通义千问)
 
 ## 项目结构
 
 ```
-metric-analyst-agent/
-├── src/main/java/com/metric/analyst/agent/
-│   ├── agents/
-│   │   ├── AgentConfig.java           # Agent 配置
-│   │   ├── MetricAnalystOrchestrator.java  # 主管编排器
-│   │   └── MetricQueryTools.java      # @Tool 注解工具类
-│   ├── controller/
-│   │   └── AnalystController.java     # REST API
-│   ├── dto/
-│   │   ├── MetricComparisonDTO.java
-│   │   ├── MetricRankingDTO.java
-│   │   └── MetricTrendDTO.java
-│   ├── entity/
-│   │   └── IndicatorFact.java         # 指标事实实体
-│   ├── repository/
-│   │   └── IndicatorFactRepository.java
-│   └── MetricAnalystAgentApplication.java
-├── src/main/resources/
-│   ├── sql/
-│   │   └── init-mysql.sql             # MySQL 初始化脚本
-│   ├── application.yml                # 主配置
-│   └── application-local.yml          # 本地开发配置
-└── pom.xml
+src/main/java/com/metric/analyst/agent/
+├── agents/           # 智能体定义
+├── controller/       # API控制器
+├── dto/              # 数据传输对象
+├── entity/           # 实体类
+├── repository/       # 数据访问层
+└── service/          # 业务逻辑层
+    ├── IntentClassificationService.java    # 意图分类
+    ├── IndicatorRecognitionService.java    # 指标识别
+    ├── DimensionNormalizationService.java  # 维度标准化
+    ├── DataQueryService.java               # 数据查询
+    ├── IndicatorVectorStore.java           # 向量存储
+    └── SynonymIndexService.java            # 同义词索引
 ```
-
-## 扩展开发
-
-### 添加新的工具
-
-```java
-@Component
-public class NewTools {
-    
-    @Tool(description = "新工具描述")
-    public String newTool(
-            @ToolParam(description = "参数描述") String param) {
-        // 实现逻辑
-        return "结果";
-    }
-}
-```
-
-### 添加新的 Agent
-
-```java
-@Bean
-public ReactAgent newAgent(ChatModel chatModel, MemorySaver memorySaver) {
-    return ReactAgent.builder()
-            .name("new_agent")
-            .description("新 Agent 描述")
-            .model(chatModel)
-            .systemPrompt("系统提示词")
-            .saver(memorySaver)
-            .build();
-}
-```
-
-## 参考文档
-
-- [Spring AI Alibaba Agent Framework](https://java2ai.com/docs/frameworks/agent-framework)
-- [ReactAgent 教程](https://java2ai.com/docs/frameworks/agent-framework/tutorials/agents)
-- [Tools 教程](https://java2ai.com/docs/frameworks/agent-framework/tutorials/tools)
-- [Multi-Agent 教程](https://java2ai.com/docs/frameworks/agent-framework/advanced/multi-agent)
 
 ## License
 
-MIT License
+MIT
