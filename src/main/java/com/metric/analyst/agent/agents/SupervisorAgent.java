@@ -1,5 +1,6 @@
 package com.metric.analyst.agent.agents;
 
+import com.metric.analyst.agent.config.ModelManager;
 import com.metric.analyst.agent.skills.SkillRegistry;
 import com.metric.analyst.agent.skills.SkillTools;
 import org.springframework.ai.chat.client.ChatClient;
@@ -17,8 +18,9 @@ public class SupervisorAgent {
     private final MetricQueryAgent metricQueryAgent;
     private final InsightAgent insightAgent;
     private final SkillRegistry skillRegistry;
+    private final ModelManager modelManager;
 
-    public SupervisorAgent(ChatClient.Builder chatClientBuilder,
+    public SupervisorAgent(ModelManager modelManager,
                           MetricQueryAgent metricQueryAgent,
                           InsightAgent insightAgent,
                           SkillRegistry skillRegistry,
@@ -26,8 +28,10 @@ public class SupervisorAgent {
         this.metricQueryAgent = metricQueryAgent;
         this.insightAgent = insightAgent;
         this.skillRegistry = skillRegistry;
+        this.modelManager = modelManager;
         
-        this.chatClient = chatClientBuilder
+        this.chatClient = modelManager.getDefaultClient()
+            .mutate()
             .defaultSystem("""
                 你是【主管智能体】，负责协调指标查询专家和洞察分析专家完成用户请求。
                 
@@ -56,26 +60,48 @@ public class SupervisorAgent {
      * 处理用户请求 - 智能路由到合适的子智能体
      */
     public String handle(String userInput) {
+        return handle(userInput, null);
+    }
+
+    /**
+     * 处理用户请求 - 指定模型提供商
+     * @param provider dashscope | openai | kimi | deepseek
+     */
+    public String handle(String userInput, String provider) {
         // 1. 判断请求类型
         RequestType type = classifyRequest(userInput);
         
         switch (type) {
             case SIMPLE_QUERY:
                 // 简单查询交给指标查询专家
-                return metricQueryAgent.handle(userInput);
+                return metricQueryAgent.handle(userInput, provider);
                 
             case DEEP_ANALYSIS:
                 // 深度分析交给洞察分析专家
-                return insightAgent.handle(userInput);
+                return insightAgent.handle(userInput, provider);
                 
             case COMPOSITE:
             default:
                 // 复合请求：先查询后分析
-                String queryResult = metricQueryAgent.handle(userInput);
+                String queryResult = metricQueryAgent.handle(userInput, provider);
                 String analysisRequest = "基于以下数据进行分析:\n" + queryResult + 
                                         "\n\n用户原始问题: " + userInput;
-                return insightAgent.handle(analysisRequest);
+                return insightAgent.handle(analysisRequest, provider);
         }
+    }
+
+    /**
+     * 获取可用的模型提供商列表
+     */
+    public String[] getAvailableProviders() {
+        return modelManager.getAvailableProviders();
+    }
+
+    /**
+     * 获取当前默认模型提供商
+     */
+    public String getDefaultProvider() {
+        return modelManager.getDefaultProvider();
     }
 
     /**

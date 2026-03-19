@@ -1,5 +1,6 @@
 package com.metric.analyst.agent.agents;
 
+import com.metric.analyst.agent.config.ModelManager;
 import com.metric.analyst.agent.skills.SkillTools;
 import com.metric.analyst.agent.tools.MetricQueryTools;
 import org.springframework.ai.chat.client.ChatClient;
@@ -11,12 +12,35 @@ import org.springframework.stereotype.Component;
 @Component
 public class InsightAgent {
 
-    private final ChatClient chatClient;
+    private final ModelManager modelManager;
+    private final MetricQueryTools metricQueryTools;
+    private final SkillTools skillTools;
 
-    public InsightAgent(ChatClient.Builder chatClientBuilder,
+    public InsightAgent(ModelManager modelManager,
                        MetricQueryTools metricQueryTools,
                        SkillTools skillTools) {
-        this.chatClient = chatClientBuilder
+        this.modelManager = modelManager;
+        this.metricQueryTools = metricQueryTools;
+        this.skillTools = skillTools;
+    }
+
+    /**
+     * 获取配置了工具的系统提示词 ChatClient
+     */
+    private ChatClient getChatClient() {
+        return getChatClient(null);
+    }
+
+    /**
+     * 获取配置了工具的系统提示词 ChatClient，指定模型
+     */
+    private ChatClient getChatClient(String provider) {
+        ChatClient baseClient = provider != null 
+            ? modelManager.getClient(provider) 
+            : modelManager.getDefaultClient();
+        
+        // 添加系统提示词和工具
+        return baseClient.mutate()
             .defaultSystem("""
                 你是【数据洞察专家】，专门进行深度数据分析和洞察发现。
                 
@@ -42,7 +66,11 @@ public class InsightAgent {
     }
 
     public String handle(String request) {
-        return chatClient.prompt()
+        return handle(request, null);
+    }
+
+    public String handle(String request, String provider) {
+        return getChatClient(provider).prompt()
             .user(request)
             .call()
             .content();

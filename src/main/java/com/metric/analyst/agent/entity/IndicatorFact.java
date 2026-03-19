@@ -41,7 +41,7 @@ public class IndicatorFact {
     @Column(name = "company_type_code")
     private String companyTypeCode;
 
-    @Column(name = "value")
+    @Column(name = "metric_value")
     private BigDecimal value;
 
     @Column(name = "value_yoy")
