@@ -23,26 +23,26 @@ public class IndicatorFact {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "indicator_id")
-    private String indicatorId;
-
-    @Column(name = "time_id")
-    private String timeId;
+    @Column(name = "indicator_code")
+    private String indicatorCode;
 
     @Column(name = "region_code")
     private String regionCode;
 
-    @Column(name = "education_code")
-    private String educationCode;
+    @Column(name = "year")
+    private Integer year;
 
-    @Column(name = "industry_chain_code")
-    private String industryChainCode;
+    @Column(name = "month")
+    private Integer month;
+
+    @Column(name = "education_level_code")
+    private String educationLevelCode;
 
     @Column(name = "company_type_code")
     private String companyTypeCode;
 
     @Column(name = "metric_value")
-    private BigDecimal value;
+    private BigDecimal metricValue;
 
     @Column(name = "value_yoy")
     private BigDecimal valueYoy;

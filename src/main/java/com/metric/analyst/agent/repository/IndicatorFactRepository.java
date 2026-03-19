@@ -11,21 +11,32 @@ import java.util.List;
 @Repository
 public interface IndicatorFactRepository extends JpaRepository<IndicatorFact, Long> {
 
-    @Query("SELECT f FROM IndicatorFact f WHERE f.indicatorId = :indicatorId " +
-           "AND (:regionCode IS NULL OR f.regionCode = :regionCode) " +
-           "AND (:timeId IS NULL OR f.timeId = :timeId) " +
-           "ORDER BY f.timeId DESC")
-    List<IndicatorFact> findByIndicatorAndRegion(@Param("indicatorId") String indicatorId,
-                                                  @Param("regionCode") String regionCode,
-                                                  @Param("timeId") String timeId);
+    /**
+     * 根据指标编码和地区编码查询，按年份月份降序
+     */
+    @Query("SELECT f FROM IndicatorFact f WHERE f.indicatorCode = :indicatorCode " +
+           "AND f.regionCode = :regionCode " +
+           "ORDER BY f.year DESC, f.month DESC")
+    List<IndicatorFact> findByIndicatorCodeAndRegionCodeOrderByYearDescMonthDesc(
+            @Param("indicatorCode") String indicatorCode,
+            @Param("regionCode") String regionCode);
 
-    @Query("SELECT f FROM IndicatorFact f WHERE f.indicatorId = :indicatorId " +
-           "AND f.regionCode = :regionCode ORDER BY f.timeId DESC")
-    List<IndicatorFact> findTrendByIndicator(@Param("indicatorId") String indicatorId,
-                                              @Param("regionCode") String regionCode);
+    /**
+     * 根据指标编码查询所有地区数据
+     */
+    @Query("SELECT f FROM IndicatorFact f WHERE f.indicatorCode = :indicatorCode " +
+           "ORDER BY f.year DESC, f.month DESC")
+    List<IndicatorFact> findByIndicatorCodeOrderByYearDescMonthDesc(
+            @Param("indicatorCode") String indicatorCode);
 
-    @Query("SELECT f FROM IndicatorFact f WHERE f.indicatorId = :indicatorId " +
-           "AND f.timeId = :timeId ORDER BY f.value DESC")
-    List<IndicatorFact> findRanking(@Param("indicatorId") String indicatorId,
-                                     @Param("timeId") String timeId);
+    /**
+     * 查询特定年份月份的数据
+     */
+    @Query("SELECT f FROM IndicatorFact f WHERE f.indicatorCode = :indicatorCode " +
+           "AND f.year = :year AND f.month = :month " +
+           "ORDER BY f.metricValue DESC")
+    List<IndicatorFact> findByIndicatorCodeAndYearAndMonthOrderByMetricValueDesc(
+            @Param("indicatorCode") String indicatorCode,
+            @Param("year") Integer year,
+            @Param("month") Integer month);
 }
