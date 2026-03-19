@@ -151,18 +151,19 @@ public class DataQueryService {
         result.setCount(facts.size());
 
         // 计算排名
-        List<QueryResult.RankingItem> ranking = facts.stream()
+        List<QueryResult.RankingItem> ranking = new ArrayList<>();
+        List<IndicatorFact> sortedFacts = facts.stream()
             .sorted(Comparator.comparing(IndicatorFact::getFactValue).reversed())
-            .map(f -> new QueryResult.RankingItem(
-                f.getRegionId(),
-                f.getFactValue(),
-                0  // rank will be set
-            ))
             .collect(Collectors.toList());
         
-        // 设置排名
-        for (int i = 0; i < ranking.size(); i++) {
-            ranking.get(i).setRank(i + 1);
+        for (int i = 0; i < sortedFacts.size(); i++) {
+            IndicatorFact f = sortedFacts.get(i);
+            QueryResult.RankingItem item = new QueryResult.RankingItem(
+                f.getRegionId(),
+                f.getFactValue()
+            );
+            item.setRank(i + 1);
+            ranking.add(item);
         }
         result.setRanking(ranking);
 

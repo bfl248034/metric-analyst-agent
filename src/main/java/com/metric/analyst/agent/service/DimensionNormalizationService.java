@@ -103,7 +103,7 @@ public class DimensionNormalizationService {
         }
 
         // 2. 具体地区标准化
-        String normalizedName = userValue;
+        final String[] normalizedName = {userValue};
         
         // 查询synonyms匹配
         List<DimensionValue> allRegions = dimensionValueRepository.findByDimensionId("region");
@@ -112,20 +112,21 @@ public class DimensionNormalizationService {
                 String[] synonyms = dv.getSynonyms().split(",");
                 for (String syn : synonyms) {
                     if (userValue.contains(syn.trim())) {
-                        normalizedName = dv.getValueName();
+                        normalizedName[0] = dv.getValueName();
                         break;
                     }
                 }
             }
             if (dv.getValueName().contains(userValue) || userValue.contains(dv.getValueName())) {
-                normalizedName = dv.getValueName();
+                normalizedName[0] = dv.getValueName();
                 break;
             }
         }
 
         // 获取编码
+        final String finalNormalizedName = normalizedName[0];
         String code = allRegions.stream()
-            .filter(dv -> dv.getValueName().equals(normalizedName))
+            .filter(dv -> dv.getValueName().equals(finalNormalizedName))
             .findFirst()
             .map(DimensionValue::getValueCode)
             .orElse(userValue);  // _fallback: 使用原始值
@@ -133,7 +134,7 @@ public class DimensionNormalizationService {
         return DimensionValue.builder()
             .dimensionId("region")
             .valueCode(code)
-            .valueName(normalizedName)
+            .valueName(normalizedName[0])
             .build();
     }
 

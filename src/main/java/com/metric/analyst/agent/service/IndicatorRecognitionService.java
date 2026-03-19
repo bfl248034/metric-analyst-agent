@@ -128,7 +128,7 @@ public class IndicatorRecognitionService {
         // 构建Prompt
         StringBuilder candidateInfo = new StringBuilder();
         for (int i = 0; i < candidates.size(); i++) {
-            Indicator ind = candidates.get(i).get(i).getIndicator();
+            Indicator ind = candidates.get(i).getIndicator();
             List<DataDimension> dimensions = dataDimensionRepository.findByTableId(ind.getTableId());
             
             candidateInfo.append(String.format("""
@@ -269,9 +269,7 @@ public class IndicatorRecognitionService {
             RecognitionResult r = new RecognitionResult();
             r.matched = false;
             r.fallbackType = FallbackType.AMBIGUOUS;
-            r.candidates = candidates.stream()
-                .map(c -> c.getIndicator())
-                .collect(Collectors.toList());
+            r.candidates = candidates;
             r.confidence = rankResult.getConfidence();
             return r;
         }

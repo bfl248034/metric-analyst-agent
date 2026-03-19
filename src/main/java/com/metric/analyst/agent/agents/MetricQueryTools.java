@@ -4,7 +4,9 @@ import com.metric.analyst.agent.dto.MetricComparisonDTO;
 import com.metric.analyst.agent.dto.MetricRankingDTO;
 import com.metric.analyst.agent.dto.MetricTrendDTO;
 import com.metric.analyst.agent.entity.IndicatorFact;
-import com.metric.analyst.agent.repository.IndicatorFactRepository;
+import com.metric.analyst.agent.service.DataQueryService;
+import com.metric.analyst.agent.service.DimensionNormalizationService;
+import com.metric.analyst.agent.service.IndicatorRecognitionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
@@ -25,16 +27,18 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MetricQueryTools {
 
-    private final IndicatorFactRepository factRepository;
+    private final IndicatorRecognitionService recognitionService;
+    private final DimensionNormalizationService dimensionService;
+    private final DataQueryService dataQueryService;
 
     // 指标名称映射
     private static final Map<String, String> METRIC_NAME_MAP = Map.ofEntries(
-            Map.entry("招聘数量", "recruitment_count"),
-            Map.entry("平均薪资", "avg_salary"),
-            Map.entry("招聘", "recruitment_count"),
-            Map.entry("薪资", "avg_salary"),
-            Map.entry("人才需求", "talent_demand_index"),
-            Map.entry("薪资增长", "salary_growth_rate")
+            Map.entry("招聘数量", "I_RPA_ICN_RAE_POSITION_NUM"),
+            Map.entry("平均薪资", "I_RPA_ICN_RAE_SALARY_AMOUNT"),
+            Map.entry("招聘", "I_RPA_ICN_RAE_POSITION_NUM"),
+            Map.entry("薪资", "I_RPA_ICN_RAE_SALARY_AMOUNT"),
+            Map.entry("企业新增", "I_RPA_ICN_ECO_SPE_COMPANY_ADD_NUM"),
+            Map.entry("企业注销", "I_RPA_ICN_ECO_SPE_COMPANY_CANCEL_NUM")
     );
 
     // 地区名称映射
@@ -62,39 +66,50 @@ public class MetricQueryTools {
 
         log.info("查询指标当前值: metric={}, region={}", metricName, regionName);
 
-        String metricCode = normalizeMetricName(metricName);
-        String regionCode = normalizeRegionName(regionName);
-
-        if (metricCode == null) {
+        // 使用识别服务找到指标
+        IndicatorRecognitionService.RecognitionResult recognition = 
+            recognitionService.recognize(regionName + metricName);
+        
+        if (!recognition.isMatched()) {
             return "未找到指标: " + metricName + "。可用指标：招聘数量、平均薪资";
         }
-        if (regionCode == null) {
-            return "未找到地区: " + regionName + "。可用地区：北京、上海、广州、深圳、杭州等";
-        }
 
-        // 查询最新月份的数据
-        List<IndicatorFact> facts = factRepository.findByIndicatorCodeAndRegionCodeOrderByYearDescMonthDesc(
-                metricCode, regionCode);
+        // 标准化维度
+        Map<String, Object> dims = new HashMap<>();
+        dims.put("region", regionName);
+        dims.put("time", "latest");
+        
+        DimensionNormalizationService.NormalizedDimensions normalized = 
+            dimensionService.normalize(
+                recognition.getIndicator().getIndicatorId(),
+                recognition.getIndicator().getTableId(),
+                dims
+            );
 
-        if (facts.isEmpty()) {
+        // 查询数据
+        DataQueryService.QueryResult result = dataQueryService.query(
+            recognition.getIndicator().getTableId(),
+            normalized
+        );
+
+        if (!result.isSuccess() || result.getFacts().isEmpty()) {
             return String.format("未找到 %s 在 %s 的数据", metricName, regionName);
         }
 
-        IndicatorFact latest = facts.get(0);
-        StringBuilder result = new StringBuilder();
-        result.append(String.format("%s%s的%s数据：\n", regionName, latest.getYear(), metricName));
-        result.append(String.format("- 数值：%s %s\n",
-                latest.getMetricValue() != null ? latest.getMetricValue().toPlainString() : "N/A",
-                getUnit(metricCode)));
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("%s的%s数据：\n", regionName, metricName));
+        sb.append(String.format("- 数值：%s %s\n",
+                result.getLatestValue() != null ? result.getLatestValue().toPlainString() : "N/A",
+                getUnit(metricName)));
 
-        if (latest.getValueYoy() != null) {
-            result.append(String.format("- 同比增长：%.1f%%\n", latest.getValueYoy()));
+        if (result.getLatestYoy() != null) {
+            sb.append(String.format("- 同比增长：%.1f%%\n", result.getLatestYoy()));
         }
-        if (latest.getValueMom() != null) {
-            result.append(String.format("- 环比增长：%.1f%%\n", latest.getValueMom()));
+        if (result.getLatestMom() != null) {
+            sb.append(String.format("- 环比增长：%.1f%%\n", result.getLatestMom()));
         }
 
-        return result.toString();
+        return sb.toString();
     }
 
     /**
@@ -107,8 +122,11 @@ public class MetricQueryTools {
 
         log.info("对比指标: metric={}, regions={}", metricName, regionNames);
 
-        String metricCode = normalizeMetricName(metricName);
-        if (metricCode == null) {
+        // 使用识别服务找到指标
+        IndicatorRecognitionService.RecognitionResult recognition = 
+            recognitionService.recognize(regionNames + metricName);
+        
+        if (!recognition.isMatched()) {
             return "未找到指标: " + metricName;
         }
 
@@ -117,15 +135,26 @@ public class MetricQueryTools {
 
         for (String region : regions) {
             String regionName = region.trim();
-            String regionCode = normalizeRegionName(regionName);
-            if (regionCode == null) continue;
+            
+            Map<String, Object> dims = new HashMap<>();
+            dims.put("region", regionName);
+            dims.put("time", "latest");
+            
+            DimensionNormalizationService.NormalizedDimensions normalized = 
+                dimensionService.normalize(
+                    recognition.getIndicator().getIndicatorId(),
+                    recognition.getIndicator().getTableId(),
+                    dims
+                );
 
-            List<IndicatorFact> facts = factRepository
-                    .findByIndicatorCodeAndRegionCodeOrderByYearDescMonthDesc(metricCode, regionCode);
-            if (!facts.isEmpty()) {
-                IndicatorFact fact = facts.get(0);
+            DataQueryService.QueryResult result = dataQueryService.query(
+                recognition.getIndicator().getTableId(),
+                normalized
+            );
+
+            if (result.isSuccess() && result.getLatestValue() != null) {
                 dataList.add(new MetricComparisonDTO.RegionData(
-                        regionName, fact.getMetricValue(), fact.getValueYoy()));
+                        regionName, result.getLatestValue(), result.getLatestYoy()));
             }
         }
 
@@ -147,7 +176,7 @@ public class MetricQueryTools {
                     i + 1,
                     data.getRegionName(),
                     data.getValue() != null ? data.getValue().toPlainString() : "N/A",
-                    getUnit(metricCode),
+                    getUnit(metricName),
                     bar));
             if (data.getYoy() != null) {
                 result.append(String.format("   同比: %+.1f%%\n", data.getYoy()));
@@ -169,68 +198,76 @@ public class MetricQueryTools {
         log.info("查询趋势: metric={}, region={}, months={}", metricName, regionName, months);
 
         if (months <= 0) months = 6;
-        if (months > 24) months = 24; // 最多24个月
+        if (months > 24) months = 24;
 
-        String metricCode = normalizeMetricName(metricName);
-        String regionCode = normalizeRegionName(regionName);
-
-        if (metricCode == null) {
+        // 使用识别服务找到指标
+        IndicatorRecognitionService.RecognitionResult recognition = 
+            recognitionService.recognize(regionName + metricName + "近" + months + "个月");
+        
+        if (!recognition.isMatched()) {
             return "未找到指标: " + metricName;
         }
-        if (regionCode == null) {
-            return "未找到地区: " + regionName;
-        }
 
-        List<IndicatorFact> facts = factRepository
-                .findByIndicatorCodeAndRegionCodeOrderByYearDescMonthDesc(metricCode, regionCode);
+        Map<String, Object> dims = new HashMap<>();
+        dims.put("region", regionName);
+        dims.put("time", "last:" + months);
+        
+        DimensionNormalizationService.NormalizedDimensions normalized = 
+            dimensionService.normalize(
+                recognition.getIndicator().getIndicatorId(),
+                recognition.getIndicator().getTableId(),
+                dims
+            );
 
-        if (facts.isEmpty()) {
+        DataQueryService.QueryResult result = dataQueryService.query(
+            recognition.getIndicator().getTableId(),
+            normalized
+        );
+
+        if (!result.isSuccess() || result.getFacts().isEmpty()) {
             return String.format("未找到 %s 在 %s 的历史数据", metricName, regionName);
         }
 
-        // 取最近N个月
-        List<IndicatorFact> recentFacts = facts.stream()
-                .limit(months)
-                .sorted(Comparator.comparing(IndicatorFact::getYear)
-                        .thenComparing(IndicatorFact::getMonth))
-                .collect(Collectors.toList());
+        List<IndicatorFact> facts = result.getFacts().stream()
+            .sorted(Comparator.comparing(IndicatorFact::getTimeId))
+            .collect(Collectors.toList());
 
-        StringBuilder result = new StringBuilder();
-        result.append(String.format("%s%s的%s趋势（最近%d个月）：\n\n",
-                regionName, recentFacts.get(0).getYear(), metricName, recentFacts.size()));
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("%s的%s趋势（最近%d个月）：\n\n",
+                regionName, metricName, facts.size()));
 
         // 计算最大值用于图表
-        BigDecimal maxValue = recentFacts.stream()
-                .map(IndicatorFact::getMetricValue)
+        BigDecimal maxValue = facts.stream()
+                .map(IndicatorFact::getFactValue)
                 .filter(Objects::nonNull)
                 .max(Comparator.naturalOrder())
                 .orElse(BigDecimal.ONE);
 
-        for (IndicatorFact fact : recentFacts) {
-            String monthStr = String.format("%02d", fact.getMonth());
-            String bar = generateBar(fact.getMetricValue(), maxValue, 15);
-            result.append(String.format("%s月: %s %s %s",
-                    monthStr,
-                    fact.getMetricValue() != null ? fact.getMetricValue().toPlainString() : "N/A",
-                    getUnit(metricCode),
+        for (IndicatorFact fact : facts) {
+            String timeStr = fact.getTimeId().toString();
+            String bar = generateBar(fact.getFactValue(), maxValue, 15);
+            sb.append(String.format("%s: %s %s %s",
+                    timeStr,
+                    fact.getFactValue() != null ? fact.getFactValue().toPlainString() : "N/A",
+                    getUnit(metricName),
                     bar));
             if (fact.getValueMom() != null) {
                 String momSymbol = fact.getValueMom().compareTo(BigDecimal.ZERO) > 0 ? "↑" : "↓";
-                result.append(String.format(" (%s%.1f%%)", momSymbol, fact.getValueMom().abs().doubleValue()));
+                sb.append(String.format(" (%s%.1f%%)", momSymbol, fact.getValueMom().abs().doubleValue()));
             }
-            result.append("\n");
+            sb.append("\n");
         }
 
         // 添加汇总统计
-        BigDecimal avgValue = recentFacts.stream()
-                .map(IndicatorFact::getMetricValue)
+        BigDecimal avgValue = facts.stream()
+                .map(IndicatorFact::getFactValue)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .divide(BigDecimal.valueOf(recentFacts.size()), 2, RoundingMode.HALF_UP);
+                .divide(BigDecimal.valueOf(facts.size()), 2, RoundingMode.HALF_UP);
 
-        result.append(String.format("\n平均值: %s %s", avgValue.toPlainString(), getUnit(metricCode)));
+        sb.append(String.format("\n平均值: %s %s", avgValue.toPlainString(), getUnit(metricName)));
 
-        return result.toString();
+        return sb.toString();
     }
 
     /**
@@ -246,50 +283,52 @@ public class MetricQueryTools {
         if (topN <= 0) topN = 5;
         if (topN > 20) topN = 20;
 
-        String metricCode = normalizeMetricName(metricName);
-        if (metricCode == null) {
+        // 使用识别服务找到指标 - 地区级别查询
+        IndicatorRecognitionService.RecognitionResult recognition = 
+            recognitionService.recognize("各省份" + metricName);
+        
+        if (!recognition.isMatched()) {
             return "未找到指标: " + metricName;
         }
 
-        List<MetricRankingDTO.RankingItem> items = new ArrayList<>();
+        Map<String, Object> dims = new HashMap<>();
+        dims.put("region", "各省份");  // 触发省级分组查询
+        dims.put("time", "latest");
+        
+        DimensionNormalizationService.NormalizedDimensions normalized = 
+            dimensionService.normalize(
+                recognition.getIndicator().getIndicatorId(),
+                recognition.getIndicator().getTableId(),
+                dims
+            );
 
-        for (Map.Entry<String, String> entry : REGION_NAME_MAP.entrySet()) {
-            String regionName = entry.getKey();
-            String regionCode = entry.getValue();
+        DataQueryService.QueryResult result = dataQueryService.query(
+            recognition.getIndicator().getTableId(),
+            normalized
+        );
 
-            List<IndicatorFact> facts = factRepository
-                    .findByIndicatorCodeAndRegionCodeOrderByYearDescMonthDesc(metricCode, regionCode);
-            if (!facts.isEmpty()) {
-                IndicatorFact fact = facts.get(0);
-                items.add(new MetricRankingDTO.RankingItem(regionName, fact.getMetricValue(), fact.getValueYoy()));
-            }
-        }
-
-        if (items.isEmpty()) {
+        if (!result.isSuccess() || result.getRanking().isEmpty()) {
             return "未找到排名数据";
         }
 
-        // 按数值排序
-        items.sort((a, b) -> b.getValue().compareTo(a.getValue()));
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("%s地区排名（前%d名）：\n\n", metricName, Math.min(topN, result.getRanking().size())));
 
-        StringBuilder result = new StringBuilder();
-        result.append(String.format("%s地区排名（前%d名）：\n\n", metricName, Math.min(topN, items.size())));
-
-        BigDecimal maxValue = items.get(0).getValue();
-        for (int i = 0; i < Math.min(topN, items.size()); i++) {
-            MetricRankingDTO.RankingItem item = items.get(i);
+        BigDecimal maxValue = result.getRanking().get(0).getValue();
+        for (int i = 0; i < Math.min(topN, result.getRanking().size()); i++) {
+            DataQueryService.QueryResult.RankingItem item = result.getRanking().get(i);
             String medal = i < 3 ? new String[]{"🥇", "🥈", "🥉"}[i] : String.format("%d.", i + 1);
             String bar = generateBar(item.getValue(), maxValue, 15);
 
-            result.append(String.format("%s %s: %s %s %s\n",
+            sb.append(String.format("%s %s: %s %s %s\n",
                     medal,
-                    item.getRegionName(),
+                    item.getRegionId(),
                     item.getValue() != null ? item.getValue().toPlainString() : "N/A",
-                    getUnit(metricCode),
+                    getUnit(metricName),
                     bar));
         }
 
-        return result.toString();
+        return sb.toString();
     }
 
     /**
@@ -326,32 +365,14 @@ public class MetricQueryTools {
 
     // ============ 辅助方法 ============
 
-    private String normalizeMetricName(String input) {
-        for (Map.Entry<String, String> entry : METRIC_NAME_MAP.entrySet()) {
-            if (input.toLowerCase().contains(entry.getKey().toLowerCase())) {
-                return entry.getValue();
-            }
+    private String getUnit(String metricName) {
+        if (metricName.contains("薪资") || metricName.contains("工资")) {
+            return "元";
         }
-        return null;
-    }
-
-    private String normalizeRegionName(String input) {
-        for (Map.Entry<String, String> entry : REGION_NAME_MAP.entrySet()) {
-            if (input.contains(entry.getKey())) {
-                return entry.getValue();
-            }
+        if (metricName.contains("数量") || metricName.contains("企业") || metricName.contains("岗位")) {
+            return "个";
         }
-        return null;
-    }
-
-    private String getUnit(String metricCode) {
-        return switch (metricCode) {
-            case "recruitment_count" -> "个";
-            case "avg_salary" -> "元";
-            case "talent_demand_index" -> "点";
-            case "salary_growth_rate" -> "%";
-            default -> "";
-        };
+        return "";
     }
 
     private String generateBar(BigDecimal value, BigDecimal max, int maxWidth) {
