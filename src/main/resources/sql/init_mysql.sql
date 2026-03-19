@@ -12,6 +12,73 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+
+-- ----------------------------
+-- Table structure for db_data_source
+-- ----------------------------
+DROP TABLE IF EXISTS `db_data_source`;
+CREATE TABLE `db_data_source`  (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `source_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '数据源标识',
+  `source_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '数据源名称',
+  `source_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '类型：mysql/kylin/api',
+  `host` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '主机地址',
+  `port` int(11) NULL DEFAULT NULL COMMENT '端口',
+  `database_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '数据库名',
+  `username` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '用户名',
+  `password` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '密码',
+  `connection_params` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL COMMENT '连接参数JSON',
+  `is_active` tinyint(1) NULL DEFAULT 1 COMMENT '是否启用',
+  `created_at` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+  `updated_at` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0),
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `source_id`(`source_id`) USING BTREE,
+  INDEX `idx_type`(`source_type`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '数据源配置表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of db_data_source
+-- ----------------------------
+INSERT INTO `db_data_source` VALUES (1, 'mysql_prod', '生产MySQL', 'mysql', 'localhost', 3306, '', '', '', NULL, 1, '2026-03-18 10:52:11', '2026-03-19 18:36:29');
+
+-- ----------------------------
+-- Table structure for db_data_table
+-- ----------------------------
+DROP TABLE IF EXISTS `db_data_table`;
+CREATE TABLE `db_data_table`  (
+  `table_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '表唯一标识',
+  `table_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '物理表名',
+  `table_alias` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '表别名/中文名',
+  `source_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '数据源ID',
+  `database_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '数据库名',
+  `schema_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT 'Schema名',
+  `table_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT 'fact' COMMENT '类型：fact(事实表)/dim(维度表)',
+  `description` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '表业务描述',
+  `time_column` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT 'time_id' COMMENT '时间维度字段名',
+  `region_column` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT 'region_id' COMMENT '地区维度字段名',
+  `value_column` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT 'fact_value' COMMENT '数值字段名',
+  `is_active` tinyint(1) NULL DEFAULT 1 COMMENT '是否启用',
+  `created_at` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+  `updated_at` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0),
+  PRIMARY KEY (`table_id`) USING BTREE,
+  INDEX `idx_source`(`source_id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '数据表登记' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of db_data_table
+-- ----------------------------
+INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_eco_spe_company_add_num_m', 'ads_rpa_w_icn_eco_spe_company_add_num_m', '新增企业数量', 'mysql_prod', 'metric_db', NULL, 'fact', '新增企业数量统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
+INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_eco_spe_company_cancel_num_m', 'ads_rpa_w_icn_eco_spe_company_cancel_num_m', '注销企业数量', 'mysql_prod', 'metric_db', NULL, 'fact', '注销企业数量统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
+INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_eco_spe_company_on_num_m', 'ads_rpa_w_icn_eco_spe_company_on_num_m', '在营企业数量', 'mysql_prod', 'metric_db', NULL, 'fact', '在营企业数量统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
+INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_edu_recruit_position_num_m', 'ads_rpa_w_icn_edu_recruit_position_num_m', '招聘岗位数量', 'mysql_prod', 'metric_db', NULL, 'fact', '招聘岗位数量统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
+INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_recruit_company_num_m', 'ads_rpa_w_icn_recruit_company_num_m', '招聘市场主体数量', 'mysql_prod', 'metric_db', NULL, 'fact', '招聘市场主体数量统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
+INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_recruit_salary_amount_m', 'ads_rpa_w_icn_recruit_salary_amount_m', '招聘岗位平均薪酬', 'mysql_prod', 'metric_db', NULL, 'fact', '招聘岗位平均薪酬统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
+INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_sce_pri_government_procurement_amount_m', 'ads_rpa_w_icn_sce_pri_government_procurement_amount_m', '政府采购金额', 'mysql_prod', 'metric_db', NULL, 'fact', '政府采购金额统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
+INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_sce_pri_government_procurement_avg_m', 'ads_rpa_w_icn_sce_pri_government_procurement_avg_m', '政府采购平均价格', 'mysql_prod', 'metric_db', NULL, 'fact', '政府采购平均价格统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
+INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_sce_pri_government_procurement_num_m', 'ads_rpa_w_icn_sce_pri_government_procurement_num_m', '政府采购数量', 'mysql_prod', 'metric_db', NULL, 'fact', '政府采购数量统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
+INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_typ_com_patent_application_num_m', 'ads_rpa_w_icn_typ_com_patent_application_num_m', '专利申请数量', 'mysql_prod', 'metric_db', NULL, 'fact', '专利申请数量统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
+
+
 -- ----------------------------
 -- Table structure for db_data_dimension
 -- ----------------------------
@@ -101,70 +168,6 @@ INSERT INTO `db_data_dimension` VALUES (63, 'ads_rpa_w_icn_sce_pri_government_pr
 INSERT INTO `db_data_dimension` VALUES (64, 'ads_rpa_w_icn_sce_pri_government_procurement_avg_m', 'icn_chain_area', '产业链领域', 'icn_chain_area_id', 1, 0, 'ICN_CHAIN_6', 'categorical', 6);
 INSERT INTO `db_data_dimension` VALUES (65, 'ads_rpa_w_icn_sce_pri_government_procurement_avg_m', 'icn_chain_link', '产业链环节', 'icn_chain_link_id', 1, 0, 'ICN_CHAIN_6', 'categorical', 7);
 
--- ----------------------------
--- Table structure for db_data_source
--- ----------------------------
-DROP TABLE IF EXISTS `db_data_source`;
-CREATE TABLE `db_data_source`  (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `source_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '数据源标识',
-  `source_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '数据源名称',
-  `source_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '类型：mysql/kylin/api',
-  `host` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '主机地址',
-  `port` int(11) NULL DEFAULT NULL COMMENT '端口',
-  `database_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '数据库名',
-  `username` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '用户名',
-  `password` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '密码',
-  `connection_params` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL COMMENT '连接参数JSON',
-  `is_active` tinyint(1) NULL DEFAULT 1 COMMENT '是否启用',
-  `created_at` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
-  `updated_at` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0),
-  PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `source_id`(`source_id`) USING BTREE,
-  INDEX `idx_type`(`source_type`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '数据源配置表' ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of db_data_source
--- ----------------------------
-INSERT INTO `db_data_source` VALUES (1, 'mysql_prod', '生产MySQL', 'mysql', 'localhost', 3306, '', '', '', NULL, 1, '2026-03-18 10:52:11', '2026-03-19 18:36:29');
-
--- ----------------------------
--- Table structure for db_data_table
--- ----------------------------
-DROP TABLE IF EXISTS `db_data_table`;
-CREATE TABLE `db_data_table`  (
-  `table_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '表唯一标识',
-  `table_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '物理表名',
-  `table_alias` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '表别名/中文名',
-  `source_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '数据源ID',
-  `database_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '数据库名',
-  `schema_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT 'Schema名',
-  `table_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT 'fact' COMMENT '类型：fact(事实表)/dim(维度表)',
-  `description` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '表业务描述',
-  `time_column` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT 'time_id' COMMENT '时间维度字段名',
-  `region_column` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT 'region_id' COMMENT '地区维度字段名',
-  `value_column` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT 'fact_value' COMMENT '数值字段名',
-  `is_active` tinyint(1) NULL DEFAULT 1 COMMENT '是否启用',
-  `created_at` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
-  `updated_at` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP(0) ON UPDATE CURRENT_TIMESTAMP(0),
-  PRIMARY KEY (`table_id`) USING BTREE,
-  INDEX `idx_source`(`source_id`) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '数据表登记' ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Records of db_data_table
--- ----------------------------
-INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_eco_spe_company_add_num_m', 'ads_rpa_w_icn_eco_spe_company_add_num_m', '新增企业数量', 'mysql_prod', 'metric_db', NULL, 'fact', '新增企业数量统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
-INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_eco_spe_company_cancel_num_m', 'ads_rpa_w_icn_eco_spe_company_cancel_num_m', '注销企业数量', 'mysql_prod', 'metric_db', NULL, 'fact', '注销企业数量统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
-INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_eco_spe_company_on_num_m', 'ads_rpa_w_icn_eco_spe_company_on_num_m', '在营企业数量', 'mysql_prod', 'metric_db', NULL, 'fact', '在营企业数量统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
-INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_edu_recruit_position_num_m', 'ads_rpa_w_icn_edu_recruit_position_num_m', '招聘岗位数量', 'mysql_prod', 'metric_db', NULL, 'fact', '招聘岗位数量统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
-INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_recruit_company_num_m', 'ads_rpa_w_icn_recruit_company_num_m', '招聘市场主体数量', 'mysql_prod', 'metric_db', NULL, 'fact', '招聘市场主体数量统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
-INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_recruit_salary_amount_m', 'ads_rpa_w_icn_recruit_salary_amount_m', '招聘岗位平均薪酬', 'mysql_prod', 'metric_db', NULL, 'fact', '招聘岗位平均薪酬统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
-INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_sce_pri_government_procurement_amount_m', 'ads_rpa_w_icn_sce_pri_government_procurement_amount_m', '政府采购金额', 'mysql_prod', 'metric_db', NULL, 'fact', '政府采购金额统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
-INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_sce_pri_government_procurement_avg_m', 'ads_rpa_w_icn_sce_pri_government_procurement_avg_m', '政府采购平均价格', 'mysql_prod', 'metric_db', NULL, 'fact', '政府采购平均价格统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
-INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_sce_pri_government_procurement_num_m', 'ads_rpa_w_icn_sce_pri_government_procurement_num_m', '政府采购数量', 'mysql_prod', 'metric_db', NULL, 'fact', '政府采购数量统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
-INSERT INTO `db_data_table` VALUES ('ads_rpa_w_icn_typ_com_patent_application_num_m', 'ads_rpa_w_icn_typ_com_patent_application_num_m', '专利申请数量', 'mysql_prod', 'metric_db', NULL, 'fact', '专利申请数量统计表', 'time_id', 'region_id', 'fact_value', 1, '2026-03-18 10:52:11', '2026-03-18 10:52:11');
 
 -- ----------------------------
 -- Table structure for db_indicator
