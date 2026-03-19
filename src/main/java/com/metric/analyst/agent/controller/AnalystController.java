@@ -4,6 +4,7 @@ import com.metric.analyst.agent.agents.MetricAnalystAgent;
 import com.metric.analyst.agent.agents.MetricAnalystAgent.AgentResponse;
 import com.metric.analyst.agent.agents.MetricAnalystAgent.ConversationContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -13,19 +14,27 @@ import java.util.UUID;
 /**
  * 指标分析 API - 基于 Spring AI Alibaba Agent Framework
  */
-@RestController
-@RequestMapping("/api")
+@Controller
 @RequiredArgsConstructor
 public class AnalystController {
 
     private final MetricAnalystAgent agent;
 
     /**
+     * 首页 - 返回Web界面
+     */
+    @GetMapping("/")
+    public String index() {
+        return "forward:/index.html";
+    }
+
+    /**
      * AI 对话接口 - 智能体处理
      * GET /api/chat?input=北京招聘数量是多少
      * GET /api/chat?input=北京招聘数量是多少&sessionId=user_123
      */
-    @GetMapping("/chat")
+    @GetMapping("/api/chat")
+    @ResponseBody
     public Map<String, Object> chat(@RequestParam String input,
                                     @RequestParam(required = false) String sessionId) {
         if (sessionId == null) {
@@ -53,7 +62,8 @@ public class AnalystController {
      * 获取可用的指标领域
      * GET /api/domains
      */
-    @GetMapping("/domains")
+    @GetMapping("/api/domains")
+    @ResponseBody
     public Map<String, Object> getDomains() {
         Map<String, Object> result = new HashMap<>();
         result.put("domains", new String[]{
@@ -71,7 +81,8 @@ public class AnalystController {
         return result;
     }
 
-    @GetMapping("/health")
+    @GetMapping("/api/health")
+    @ResponseBody
     public Map<String, String> health() {
         Map<String, String> result = new HashMap<>();
         result.put("status", "UP");

@@ -3,513 +3,154 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Metric Analyst - 智能指标分析助手</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .chat-container {
-            width: 90%;
-            max-width: 900px;
-            height: 90vh;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .chat-header {
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .chat-header h1 {
-            font-size: 1.5rem;
-            font-weight: 600;
-        }
-
-        .chat-header .subtitle {
-            font-size: 0.85rem;
-            opacity: 0.9;
-            margin-top: 4px;
-        }
-
-        .agent-info {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .agent-badge {
-            background: rgba(255,255,255,0.2);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-        }
-
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            background: #f8f9fa;
-        }
-
-        .message {
-            margin-bottom: 20px;
-            display: flex;
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .message.user {
-            justify-content: flex-end;
-        }
-
-        .message.ai {
-            justify-content: flex-start;
-        }
-
-        .message-content {
-            max-width: 70%;
-            padding: 12px 18px;
-            border-radius: 18px;
-            font-size: 0.95rem;
-            line-height: 1.5;
-            white-space: pre-wrap;
-        }
-
-        .message.user .message-content {
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-bottom-right-radius: 4px;
-        }
-
-        .message.ai .message-content {
-            background: white;
-            color: #333;
-            border-bottom-left-radius: 4px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-
-        .message-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            margin: 0 10px;
-        }
-
-        .message.user .message-avatar {
-            order: 1;
-            background: #e3e3e3;
-        }
-
-        .message.ai .message-avatar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-
-        .typing-indicator {
-            display: none;
-            padding: 12px 18px;
-            background: white;
-            border-radius: 18px;
-            border-bottom-left-radius: 4px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-
-        .typing-indicator.active {
-            display: flex;
-            gap: 4px;
-            align-items: center;
-        }
-
-        .typing-dot {
-            width: 8px;
-            height: 8px;
-            background: #999;
-            border-radius: 50%;
-            animation: typing 1.4s infinite;
-        }
-
-        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
-        @keyframes typing {
-            0%, 60%, 100% { transform: translateY(0); }
-            30% { transform: translateY(-10px); }
-        }
-
-        .chat-input-area {
-            padding: 20px;
-            background: white;
-            border-top: 1px solid #eee;
-        }
-
-        .input-container {
-            display: flex;
-            gap: 12px;
-            align-items: flex-end;
-        }
-
-        .chat-input {
-            flex: 1;
-            padding: 14px 20px;
-            border: 2px solid #e0e0e0;
-            border-radius: 25px;
-            font-size: 0.95rem;
-            outline: none;
-            transition: border-color 0.3s;
-            resize: none;
-            min-height: 50px;
-            max-height: 120px;
-            font-family: inherit;
-        }
-
-        .chat-input:focus {
-            border-color: #667eea;
-        }
-
-        .send-btn {
-            width: 50px;
-            height: 50px;
-            border: none;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .send-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .send-btn:active {
-            transform: scale(0.95);
-        }
-
-        .send-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .send-btn svg {
-            width: 24px;
-            height: 24px;
-        }
-
-        .quick-actions {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 12px;
-            flex-wrap: wrap;
-        }
-
-        .quick-btn {
-            padding: 8px 16px;
-            border: 1px solid #ddd;
-            border-radius: 20px;
-            background: #f8f9fa;
-            color: #666;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .quick-btn:hover {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
-        }
-
-        .welcome-message {
-            text-align: center;
-            padding: 40px 20px;
-            color: #666;
-        }
-
-        .welcome-message h2 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        .welcome-message p {
-            margin-bottom: 20px;
-        }
-
-        .feature-tags {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-
-        .feature-tag {
-            background: white;
-            padding: 10px 20px;
-            border-radius: 25px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            font-size: 0.9rem;
-            color: #667eea;
-        }
-
-        .error-message {
-            background: #ffebee;
-            color: #c62828;
-            padding: 12px 18px;
-            border-radius: 12px;
-            margin-bottom: 15px;
-            font-size: 0.9rem;
-        }
-
-        /* Scrollbar styling */
-        .chat-messages::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .chat-messages::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .chat-messages::-webkit-scrollbar-thumb {
-            background: #ccc;
-            border-radius: 3px;
-        }
-
-        .chat-messages::-webkit-scrollbar-thumb:hover {
-            background: #999;
-        }
-
-        @media (max-width: 600px) {
-            .chat-container {
-                width: 100%;
-                height: 100vh;
-                border-radius: 0;
-            }
-
-            .message-content {
-                max-width: 85%;
-            }
-        }
-    </style>
+    <title>Metric Analyst - 数据分析智能体</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-header">
-            <div>
-                <h1>🤖 Metric Analyst</h1>
-                <div class="subtitle">智能指标分析助手</div>
-            </div>
-            <div class="agent-info">
-                <span class="agent-badge">Supervisor</span>
-            </div>
-        </div>
-
-        <div class="chat-messages" id="chatMessages">
-            <div class="welcome-message">
-                <h2>👋 欢迎使用 Metric Analyst</h2>
-                <p>我是您的智能指标分析助手，可以帮助您查询和分析人力资源指标数据。</p>
-                <div class="feature-tags">
-                    <span class="feature-tag">📊 指标查询</span>
-                    <span class="feature-tag">📈 趋势分析</span>
-                    <span class="feature-tag">🏆 地区排名</span>
-                    <span class="feature-tag">🔍 深度洞察</span>
+    <div class="app-container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">📊</span>
+                    <span class="logo-text">Metric Analyst</span>
                 </div>
-            </div>
-        </div>
-
-        <div class="chat-input-area">
-            <div class="quick-actions">
-                <button class="quick-btn" onclick="sendQuick('北京招聘数量')">北京招聘数量</button>
-                <button class="quick-btn" onclick="sendQuick('对比上海和深圳的薪资')">薪资对比</button>
-                <button class="quick-btn" onclick="sendQuick('杭州招聘趋势')">招聘趋势</button>
-                <button class="quick-btn" onclick="sendQuick('招聘数量排名')">查看排名</button>
-            </div>
-            <div class="input-container">
-                <textarea 
-                    class="chat-input" 
-                    id="userInput" 
-                    placeholder="输入您的问题，例如：北京招聘数量是多少？"
-                    rows="1"
-                    onkeydown="handleKeyDown(event)"
-                    oninput="autoResize(this)"
-                ></textarea>
-                <button class="send-btn" id="sendBtn" onclick="sendMessage()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="22" y1="2" x2="11" y2="13"></line>
-                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                    </svg>
+                <button class="new-chat-btn" onclick="startNewChat()">
+                    <span>+</span> 新对话
                 </button>
             </div>
+            
+            <div class="sidebar-section">
+                <h3>可查询领域</h3>
+                <div class="domain-list">
+                    <div class="domain-item" data-domain="recruitment">
+                        <span class="domain-icon">📈</span>
+                        <span>招聘就业</span>
+                    </div>
+                    <div class="domain-item" data-domain="enterprise">
+                        <span class="domain-icon">🏢</span>
+                        <span>市场主体</span>
+                    </div>
+                    <div class="domain-item" data-domain="ip">
+                        <span class="domain-icon">💡</span>
+                        <span>知识产权</span>
+                    </div>
+                    <div class="domain-item" data-domain="procurement">
+                        <span class="domain-icon">🛒</span>
+                        <span>政府采购</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>示例问题</h3>
+                <div class="example-list">
+                    <div class="example-item" onclick="sendExample('北京招聘薪资怎么样？')">
+                        北京招聘薪资怎么样？
+                    </div>
+                    <div class="example-item" onclick="sendExample('各省份企业新增排名')">
+                        各省份企业新增排名
+                    </div>
+                    <div class="example-item" onclick="sendExample('近6个月专利趋势')">
+                        近6个月专利趋势
+                    </div>
+                    <div class="example-item" onclick="sendExample('上海本科平均薪酬')">
+                        上海本科平均薪酬
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="status-dot online"></span>
+                    <span>系统运行正常</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主聊天区域 -->
+        <main class="chat-container">
+            <!-- 头部 -->
+            <header class="chat-header">
+                <div class="header-title">
+                    <h1>数据分析助手</h1>
+                    <span class="session-id" id="sessionId"></span>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="toggleTheme()" title="切换主题">
+                        🌙
+                    </button>
+                    <button class="icon-btn" onclick="clearChat()" title="清空对话">
+                        🗑️
+                    </button>
+                </div>
+            </header>
+
+            <!-- 消息区域 -->
+            <div class="messages-container" id="messagesContainer">
+                <!-- 欢迎消息 -->
+                <div class="message welcome-message">
+                    <div class="message-avatar">
+                        <span>🤖</span>
+                    </div>
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="message-author">Metric Analyst</span>
+                            <span class="message-time">刚刚</span>
+                        </div>
+                        <div class="message-body">
+                            <p>你好！我是<strong>Metric Analyst（数据分析智能体）</strong>，你的专业数据助手。</p>
+                            <p>我可以帮您查询以下领域的数据：</p>
+                            <ul>
+                                <li>📈 <strong>招聘就业</strong> - 岗位数量、平均薪酬、招聘企业</li>
+                                <li>🏢 <strong>市场主体</strong> - 新增、注销、在营企业</li>
+                                <li>💡 <strong>知识产权</strong> - 专利申请</li>
+                                <li>🛒 <strong>政府采购</strong> - 金额、数量、均价</li>
+                            </ul>
+                            <p>💬 <strong>试试这样问：</strong></p>
+                            <div class="quick-actions">
+                                <button onclick="sendExample('北京招聘薪资')">北京招聘薪资</button>
+                                <button onclick="sendExample('各省份企业新增排名')">各省份企业新增排名</button>
+                                <button onclick="sendExample('近6个月专利趋势')">近6个月专利趋势</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 输入区域 -->
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <textarea 
+                        id="messageInput" 
+                        placeholder="输入您的问题，例如：北京招聘薪资怎么样？"
+                        rows="1"
+                        onkeydown="handleKeyDown(event)"
+                        oninput="autoResize(this)"
+                    ></textarea>
+                    <button class="send-btn" onclick="sendMessage()" id="sendBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="input-hint">
+                    <span>按 Enter 发送，Shift + Enter 换行</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 加载动画 -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>正在处理...</p>
         </div>
     </div>
 
-    <script>
-        const chatMessages = document.getElementById('chatMessages');
-        const userInput = document.getElementById('userInput');
-        const sendBtn = document.getElementById('sendBtn');
-        let threadId = 'thread_' + Date.now();
-        let isWaiting = false;
-
-        // 自动生成 threadId
-        function generateThreadId() {
-            return 'thread_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        }
-
-        // 自动调整输入框高度
-        function autoResize(textarea) {
-            textarea.style.height = 'auto';
-            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
-        }
-
-        // 处理键盘事件
-        function handleKeyDown(event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                sendMessage();
-            }
-        }
-
-        // 发送快捷问题
-        function sendQuick(text) {
-            userInput.value = text;
-            sendMessage();
-        }
-
-        // 添加消息到界面
-        function addMessage(content, isUser) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isUser ? 'user' : 'ai'}`;
-            
-            const avatar = document.createElement('div');
-            avatar.className = 'message-avatar';
-            avatar.textContent = isUser ? '👤' : '🤖';
-            
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            contentDiv.textContent = content;
-            
-            messageDiv.appendChild(avatar);
-            messageDiv.appendChild(contentDiv);
-            chatMessages.appendChild(messageDiv);
-            
-            scrollToBottom();
-        }
-
-        // 显示打字指示器
-        function showTyping() {
-            const typingDiv = document.createElement('div');
-            typingDiv.className = 'message ai';
-            typingDiv.id = 'typingIndicator';
-            
-            const avatar = document.createElement('div');
-            avatar.className = 'message-avatar';
-            avatar.textContent = '🤖';
-            
-            const indicator = document.createElement('div');
-            indicator.className = 'typing-indicator active';
-            indicator.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
-            
-            typingDiv.appendChild(avatar);
-            typingDiv.appendChild(indicator);
-            chatMessages.appendChild(typingDiv);
-            
-            scrollToBottom();
-        }
-
-        // 隐藏打字指示器
-        function hideTyping() {
-            const typingIndicator = document.getElementById('typingIndicator');
-            if (typingIndicator) {
-                typingIndicator.remove();
-            }
-        }
-
-        // 滚动到底部
-        function scrollToBottom() {
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-
-        // 发送消息
-        async function sendMessage() {
-            const text = userInput.value.trim();
-            if (!text || isWaiting) return;
-
-            // 清空输入框
-            userInput.value = '';
-            userInput.style.height = 'auto';
-
-            // 添加用户消息
-            addMessage(text, true);
-
-            // 隐藏欢迎消息
-            const welcome = document.querySelector('.welcome-message');
-            if (welcome) welcome.style.display = 'none';
-
-            // 显示打字指示器
-            showTyping();
-            isWaiting = true;
-            sendBtn.disabled = true;
-
-            try {
-                // 调用后端API
-                const response = await fetch(`/api/chat?input=${encodeURIComponent(text)}&threadId=${threadId}`);
-                
-                if (!response.ok) {
-                    throw new Error('服务器响应错误');
-                }
-
-                const result = await response.text();
-                
-                // 隐藏打字指示器并添加AI回复
-                hideTyping();
-                addMessage(result, false);
-
-            } catch (error) {
-                hideTyping();
-                addMessage('抱歉，请求出现了错误：' + error.message + '\n请稍后重试。', false);
-            } finally {
-                isWaiting = false;
-                sendBtn.disabled = false;
-                userInput.focus();
-            }
-        }
-
-        // 页面加载时生成 threadId
-        threadId = generateThreadId();
-        
-        // 聚焦输入框
-        userInput.focus();
-    </script>
+    <script src="/js/app.js"></script>
 </body>
 </html>
