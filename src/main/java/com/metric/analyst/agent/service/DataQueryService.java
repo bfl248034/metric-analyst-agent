@@ -2,7 +2,6 @@ package com.metric.analyst.agent.service;
 
 import com.metric.analyst.agent.entity.DimensionValue;
 import com.metric.analyst.agent.entity.IndicatorFact;
-import com.metric.analyst.agent.repository.IndicatorFactRepository;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +16,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * 数据查询服务
+ * 数据查询服务 - 使用参数化查询防止SQL注入
  */
 @Slf4j
 @Service
@@ -37,12 +36,16 @@ public class DataQueryService {
             DimensionValue timeDim = dimensions.getDimensionValue("time");
             List<String> timeList = expandTimeIfNeeded(tableId, timeDim);
 
-            // 2. 构建SQL
-            String sql = buildSql(tableId, dimensions, timeList);
-            log.debug("Executing SQL: {}", sql);
+            // 2. 构建参数化SQL
+            SqlBuildResult sqlResult = buildParameterizedSql(tableId, dimensions, timeList);
+            log.debug("Executing SQL: {} with params: {}", sqlResult.getSql(), sqlResult.getParams());
 
-            // 3. 执行查询
-            List<IndicatorFact> facts = jdbcTemplate.query(sql, new IndicatorFactRowMapper(tableId));
+            // 3. 执行参数化查询
+            List<IndicatorFact> facts = jdbcTemplate.query(
+                sqlResult.getSql(), 
+                sqlResult.getParams().toArray(),
+                new IndicatorFactRowMapper(tableId)
+            );
 
             // 4. 后处理
             return processResults(facts, dimensions);
@@ -79,21 +82,24 @@ public class DataQueryService {
     }
 
     /**
-     * 构建SQL
+     * 构建参数化SQL
      */
-    private String buildSql(String tableId, 
-                           DimensionNormalizationService.NormalizedDimensions dimensions,
-                           List<String> timeList) {
+    private SqlBuildResult buildParameterizedSql(String tableId, 
+                                                  DimensionNormalizationService.NormalizedDimensions dimensions,
+                                                  List<String> timeList) {
         StringBuilder sql = new StringBuilder("SELECT * FROM ").append(tableId).append(" WHERE 1=1");
+        List<Object> params = new ArrayList<>();
 
         // 时间条件
         if (timeList.size() == 1) {
-            sql.append(" AND time_id = '").append(timeList.get(0)).append("'");
+            sql.append(" AND time_id = ?");
+            params.add(java.sql.Date.valueOf(timeList.get(0)));
         } else if (timeList.size() > 1) {
-            String times = timeList.stream()
-                .map(t -> "'" + t + "'")
-                .collect(Collectors.joining(","));
-            sql.append(" AND time_id IN (").append(times).append(")");
+            String placeholders = timeList.stream().map(t -> "?").collect(Collectors.joining(","));
+            sql.append(" AND time_id IN (").append(placeholders).append(")");
+            for (String time : timeList) {
+                params.add(java.sql.Date.valueOf(time));
+            }
         }
 
         // 地区条件（特殊处理：级别查询 vs 具体编码）
@@ -102,10 +108,12 @@ public class DataQueryService {
             String regionCode = regionDim.getValueCode();
             if ("省级".equals(regionCode) || "市级".equals(regionCode) || "全国".equals(regionCode)) {
                 // 级别查询
-                sql.append(" AND region_level = '").append(regionCode).append("'");
+                sql.append(" AND region_level = ?");
+                params.add(regionCode);
             } else {
                 // 具体编码
-                sql.append(" AND region_id = '").append(regionCode).append("'");
+                sql.append(" AND region_id = ?");
+                params.add(regionCode);
             }
         }
 
@@ -127,14 +135,16 @@ public class DataQueryService {
 
             // 判断是否多值查询（排除TOTAL）
             if (dimensionService.isMultiValueQuery(dimValue.getValueName())) {
-                sql.append(" AND ").append(columnName).append(" != 'TOTAL'");
+                sql.append(" AND ").append(columnName).append(" != ?");
+                params.add("TOTAL");
             } else {
-                sql.append(" AND ").append(columnName).append(" = '").append(valueCode).append("'");
+                sql.append(" AND ").append(columnName).append(" = ?");
+                params.add(valueCode);
             }
         }
 
         sql.append(" ORDER BY time_id, region_id");
-        return sql.toString();
+        return new SqlBuildResult(sql.toString(), params);
     }
 
     /**
@@ -209,6 +219,13 @@ public class DataQueryService {
         if (cmp > 0) return "上升";
         if (cmp < 0) return "下降";
         return "平稳";
+    }
+
+    // SQL构建结果
+    @Data
+    private static class SqlBuildResult {
+        private final String sql;
+        private final List<Object> params;
     }
 
     // RowMapper

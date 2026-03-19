@@ -243,6 +243,7 @@ public class IndicatorRecognitionService {
         private List<IndicatorCandidate> candidates;
         private String message;
         private FallbackType fallbackType;
+        private String inferredDomain;  // 推断的用户意图领域
 
         public enum FallbackType {
             NO_MATCH, AMBIGUOUS, ERROR
@@ -271,6 +272,15 @@ public class IndicatorRecognitionService {
             r.fallbackType = FallbackType.AMBIGUOUS;
             r.candidates = candidates;
             r.confidence = rankResult.getConfidence();
+            return r;
+        }
+
+        public static RecognitionResult noMatchWithDomain(String message, String inferredDomain) {
+            RecognitionResult r = new RecognitionResult();
+            r.matched = false;
+            r.fallbackType = FallbackType.NO_MATCH;
+            r.message = message;
+            r.inferredDomain = inferredDomain;
             return r;
         }
 
