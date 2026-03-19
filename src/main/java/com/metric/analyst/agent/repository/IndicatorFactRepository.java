@@ -11,32 +11,10 @@ import java.util.List;
 @Repository
 public interface IndicatorFactRepository extends JpaRepository<IndicatorFact, Long> {
 
-    /**
-     * 根据指标编码和地区编码查询，按年份月份降序
-     */
-    @Query("SELECT f FROM IndicatorFact f WHERE f.indicatorCode = :indicatorCode " +
-           "AND f.regionCode = :regionCode " +
-           "ORDER BY f.year DESC, f.month DESC")
-    List<IndicatorFact> findByIndicatorCodeAndRegionCodeOrderByYearDescMonthDesc(
-            @Param("indicatorCode") String indicatorCode,
-            @Param("regionCode") String regionCode);
+    @Query(value = "SELECT MAX(time_id) FROM :tableId", nativeQuery = true)
+    String findMaxTimeIdByTableId(@Param("tableId") String tableId);
 
-    /**
-     * 根据指标编码查询所有地区数据
-     */
-    @Query("SELECT f FROM IndicatorFact f WHERE f.indicatorCode = :indicatorCode " +
-           "ORDER BY f.year DESC, f.month DESC")
-    List<IndicatorFact> findByIndicatorCodeOrderByYearDescMonthDesc(
-            @Param("indicatorCode") String indicatorCode);
+    List<IndicatorFact> findByTableIdAndTimeId(String tableId, String timeId);
 
-    /**
-     * 查询特定年份月份的数据
-     */
-    @Query("SELECT f FROM IndicatorFact f WHERE f.indicatorCode = :indicatorCode " +
-           "AND f.year = :year AND f.month = :month " +
-           "ORDER BY f.metricValue DESC")
-    List<IndicatorFact> findByIndicatorCodeAndYearAndMonthOrderByMetricValueDesc(
-            @Param("indicatorCode") String indicatorCode,
-            @Param("year") Integer year,
-            @Param("month") Integer month);
+    List<IndicatorFact> findByTableIdAndRegionId(String tableId, String regionId);
 }

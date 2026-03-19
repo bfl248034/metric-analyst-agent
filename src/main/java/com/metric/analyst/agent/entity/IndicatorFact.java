@@ -7,9 +7,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
- * 指标事实数据
+ * 指标事实表 - 预聚合数据
  */
 @Data
 @Entity
@@ -23,30 +24,54 @@ public class IndicatorFact {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "indicator_code")
-    private String indicatorCode;
+    @Column(name = "time_id")
+    private LocalDate timeId;
 
-    @Column(name = "region_code")
-    private String regionCode;
+    @Column(name = "region_id", length = 64)
+    private String regionId;
 
-    @Column(name = "year")
-    private Integer year;
+    @Column(name = "region_level", length = 20)
+    private String regionLevel;
 
-    @Column(name = "month")
-    private Integer month;
+    @Column(name = "education_id", length = 64)
+    private String educationId;
 
-    @Column(name = "education_level_code")
-    private String educationLevelCode;
+    @Column(name = "economic_type_id", length = 64)
+    private String economicTypeId;
 
-    @Column(name = "company_type_code")
-    private String companyTypeCode;
+    @Column(name = "spe_tag_id", length = 64)
+    private String speTagId;
 
-    @Column(name = "metric_value")
-    private BigDecimal metricValue;
+    @Column(name = "patent_type_id", length = 64)
+    private String patentTypeId;
 
-    @Column(name = "value_yoy")
+    @Column(name = "company_type_id", length = 64)
+    private String companyTypeId;
+
+    @Column(name = "price_range_id", length = 64)
+    private String priceRangeId;
+
+    @Column(name = "scene_type_id", length = 64)
+    private String sceneTypeId;
+
+    @Column(name = "data_attr_id", length = 64)
+    private String dataAttrId;
+
+    @Column(name = "icn_chain_area_id", length = 64)
+    private String icnChainAreaId;
+
+    @Column(name = "icn_chain_link_id", length = 64)
+    private String icnChainLinkId;
+
+    @Column(name = "fact_value", precision = 18, scale = 2)
+    private BigDecimal factValue;
+
+    @Column(name = "value_mom", precision = 8, scale = 2)
+    private BigDecimal valueMom;
+
+    @Column(name = "value_yoy", precision = 8, scale = 2)
     private BigDecimal valueYoy;
 
-    @Column(name = "value_mom")
-    private BigDecimal valueMom;
+    @Column(name = "table_id", length = 128)
+    private String tableId;
 }
