@@ -2,6 +2,7 @@ package com.metric.analyst.agent.service.datasource;
 
 import com.metric.analyst.agent.entity.DataDimension;
 import com.metric.analyst.agent.entity.DataTable;
+import com.metric.analyst.agent.entity.DimensionValue;
 import com.metric.analyst.agent.service.DimensionNormalizationService;
 import lombok.Builder;
 import lombok.Data;

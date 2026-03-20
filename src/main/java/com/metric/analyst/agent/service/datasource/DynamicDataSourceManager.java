@@ -7,7 +7,6 @@ import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Map;
@@ -27,7 +26,7 @@ public class DynamicDataSourceManager {
     /**
      * 获取或创建数据源
      */
-    public DataSource getOrCreateDataSource(DataSource config) {
+    public javax.sql.DataSource getOrCreateDataSource(DataSource config) {
         return dataSourceMap.computeIfAbsent(config.getSourceId(), k -> {
             log.info("Creating datasource for: {} ({})", config.getSourceId(), config.getSourceType());
             return createHikariDataSource(config);

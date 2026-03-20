@@ -20,22 +20,60 @@ public class SimpleIndicatorLocator implements IndicatorLocator {
 
     private final IndicatorRepository indicatorRepository;
 
-    // 指标名称映射表（内置常用映射）
+    // 指标名称映射表（与 db_indicator 表中的 indicator_id 对应）
     private static final Map<String, String> METRIC_NAME_MAP = new HashMap<>();
     static {
+        // 招聘就业类
+        METRIC_NAME_MAP.put("招聘岗位数量", "I_RPA_ICN_RAE_POSITION_NUM");
         METRIC_NAME_MAP.put("招聘数量", "I_RPA_ICN_RAE_POSITION_NUM");
-        METRIC_NAME_MAP.put("平均薪资", "I_RPA_ICN_RAE_SALARY_AMOUNT");
+        METRIC_NAME_MAP.put("岗位数量", "I_RPA_ICN_RAE_POSITION_NUM");
         METRIC_NAME_MAP.put("招聘", "I_RPA_ICN_RAE_POSITION_NUM");
+        METRIC_NAME_MAP.put("岗位", "I_RPA_ICN_RAE_POSITION_NUM");
+        
+        METRIC_NAME_MAP.put("招聘岗位平均薪酬", "I_RPA_ICN_RAE_SALARY_AMOUNT");
+        METRIC_NAME_MAP.put("平均薪资", "I_RPA_ICN_RAE_SALARY_AMOUNT");
+        METRIC_NAME_MAP.put("平均薪酬", "I_RPA_ICN_RAE_SALARY_AMOUNT");
         METRIC_NAME_MAP.put("薪资", "I_RPA_ICN_RAE_SALARY_AMOUNT");
         METRIC_NAME_MAP.put("工资", "I_RPA_ICN_RAE_SALARY_AMOUNT");
         METRIC_NAME_MAP.put("薪酬", "I_RPA_ICN_RAE_SALARY_AMOUNT");
-        METRIC_NAME_MAP.put("企业新增", "I_RPA_ICN_ECO_SPE_COMPANY_ADD_NUM");
-        METRIC_NAME_MAP.put("企业注销", "I_RPA_ICN_ECO_SPE_COMPANY_CANCEL_NUM");
-        METRIC_NAME_MAP.put("企业数量", "I_RPA_ICN_ECO_SPE_COMPANY_TOTAL_NUM");
-        METRIC_NAME_MAP.put("新增企业", "I_RPA_ICN_ECO_SPE_COMPANY_ADD_NUM");
-        METRIC_NAME_MAP.put("注销企业", "I_RPA_ICN_ECO_SPE_COMPANY_CANCEL_NUM");
-        METRIC_NAME_MAP.put("专利", "I_RPA_ICN_IPA_PATENT_APPLY_NUM");
-        METRIC_NAME_MAP.put("专利申请", "I_RPA_ICN_IPA_PATENT_APPLY_NUM");
+        
+        METRIC_NAME_MAP.put("招聘市场主体数量", "I_RPA_ICN_RAE_COMPANY_NUM");
+        METRIC_NAME_MAP.put("招聘企业数量", "I_RPA_ICN_RAE_COMPANY_NUM");
+        METRIC_NAME_MAP.put("招聘公司数量", "I_RPA_ICN_RAE_COMPANY_NUM");
+        
+        // 市场主体类
+        METRIC_NAME_MAP.put("新增企业数量", "I_RPA_ICN_MKE_COMPANY_ADD_NUM");
+        METRIC_NAME_MAP.put("企业新增", "I_RPA_ICN_MKE_COMPANY_ADD_NUM");
+        METRIC_NAME_MAP.put("新增企业", "I_RPA_ICN_MKE_COMPANY_ADD_NUM");
+        METRIC_NAME_MAP.put("新注册企业", "I_RPA_ICN_MKE_COMPANY_ADD_NUM");
+        
+        METRIC_NAME_MAP.put("注销企业数量", "I_RPA_ICN_MKE_COMPANY_CANCEL_NUM");
+        METRIC_NAME_MAP.put("企业注销", "I_RPA_ICN_MKE_COMPANY_CANCEL_NUM");
+        METRIC_NAME_MAP.put("注销企业", "I_RPA_ICN_MKE_COMPANY_CANCEL_NUM");
+        
+        METRIC_NAME_MAP.put("在营企业数量", "I_RPA_ICN_MKE_COMPANY_ON_NUM");
+        METRIC_NAME_MAP.put("企业数量", "I_RPA_ICN_MKE_COMPANY_ON_NUM");
+        METRIC_NAME_MAP.put("在营企业", "I_RPA_ICN_MKE_COMPANY_ON_NUM");
+        METRIC_NAME_MAP.put("存续企业", "I_RPA_ICN_MKE_COMPANY_ON_NUM");
+        
+        // 知识产权类
+        METRIC_NAME_MAP.put("专利申请数量", "I_RPA_ICN_PAT_APPLICATION_NUM");
+        METRIC_NAME_MAP.put("专利申请", "I_RPA_ICN_PAT_APPLICATION_NUM");
+        METRIC_NAME_MAP.put("专利", "I_RPA_ICN_PAT_APPLICATION_NUM");
+        METRIC_NAME_MAP.put("申请专利", "I_RPA_ICN_PAT_APPLICATION_NUM");
+        
+        // 政府采购类
+        METRIC_NAME_MAP.put("政府采购金额", "I_RPA_ICN_GVP_AMOUNT");
+        METRIC_NAME_MAP.put("采购金额", "I_RPA_ICN_GVP_AMOUNT");
+        METRIC_NAME_MAP.put("政府支出", "I_RPA_ICN_GVP_AMOUNT");
+        
+        METRIC_NAME_MAP.put("政府采购数量", "I_RPA_ICN_GVP_NUM");
+        METRIC_NAME_MAP.put("采购数量", "I_RPA_ICN_GVP_NUM");
+        METRIC_NAME_MAP.put("采购项目数", "I_RPA_ICN_GVP_NUM");
+        
+        METRIC_NAME_MAP.put("政府采购平均价格", "I_RPA_ICN_GVP_AMOUNT_AVG");
+        METRIC_NAME_MAP.put("采购均价", "I_RPA_ICN_GVP_AMOUNT_AVG");
+        METRIC_NAME_MAP.put("平均采购价", "I_RPA_ICN_GVP_AMOUNT_AVG");
     }
 
     @Override

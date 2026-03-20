@@ -1,8 +1,9 @@
 package com.metric.analyst.agent.agents;
 
-import com.metric.analyst.agent.dto.MetricComparisonDTO;
 import com.metric.analyst.agent.entity.Indicator;
 import com.metric.analyst.agent.service.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -125,7 +126,7 @@ public class MetricQueryTools {
 
         Indicator indicator = recognition.getIndicator();
         String[] regions = regionNames.split("[，,]");
-        List<MetricComparisonDTO.RegionData> dataList = new ArrayList<>();
+        List<RegionData> dataList = new ArrayList<>();
 
         for (String region : regions) {
             String regionName = region.trim();
@@ -148,8 +149,7 @@ public class MetricQueryTools {
 
             if (result.isSuccess() && result.getRows() != null && !result.getRows().isEmpty()) {
                 DataQueryService.DataRow row = result.getRows().get(0);
-                dataList.add(new MetricComparisonDTO.RegionData(
-                        regionName, row.getValue(), null));
+                dataList.add(new RegionData(regionName, row.getValue()));
             }
         }
 
@@ -165,7 +165,7 @@ public class MetricQueryTools {
 
         BigDecimal maxValue = dataList.get(0).getValue();
         for (int i = 0; i < dataList.size(); i++) {
-            MetricComparisonDTO.RegionData data = dataList.get(i);
+            RegionData data = dataList.get(i);
             String bar = generateBar(data.getValue(), maxValue, 20);
             result.append(String.format("%d. %s: %s %s %s\n",
                     i + 1,
@@ -173,9 +173,6 @@ public class MetricQueryTools {
                     data.getValue() != null ? data.getValue().toPlainString() : "N/A",
                     getUnit(metricName),
                     bar));
-            if (data.getYoy() != null) {
-                result.append(String.format("   同比: %+.1f%%\n", data.getYoy()));
-            }
         }
 
         return result.toString();
@@ -378,5 +375,14 @@ public class MetricQueryTools {
                 .divide(max, 0, RoundingMode.HALF_UP)
                 .intValue();
         return "█".repeat(Math.max(1, width));
+    }
+    
+    // ============ 内部类 ============
+    
+    @Data
+    @AllArgsConstructor
+    private static class RegionData {
+        private String regionName;
+        private BigDecimal value;
     }
 }

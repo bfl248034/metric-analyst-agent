@@ -4,15 +4,12 @@ import com.metric.analyst.agent.entity.DataDimension;
 import com.metric.analyst.agent.entity.DimensionValue;
 import com.metric.analyst.agent.repository.DataDimensionRepository;
 import com.metric.analyst.agent.repository.DimensionValueRepository;
-import com.metric.analyst.agent.repository.IndicatorFactRepository;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -26,7 +23,6 @@ public class DimensionNormalizationService {
 
     private final DimensionValueRepository dimensionValueRepository;
     private final DataDimensionRepository dataDimensionRepository;
-    private final IndicatorFactRepository indicatorFactRepository;
 
     // 地区级别关键词
     private static final Map<String, String> REGION_LEVEL_KEYWORDS = Map.of(
@@ -228,6 +224,7 @@ public class DimensionNormalizationService {
 
     /**
      * 展开时间列表（近N期）
+     * 简化实现：返回 last:N 表达式，由查询层处理
      */
     public List<String> expandTimePeriods(String tableId, String timeExpression) {
         if (!timeExpression.startsWith("last:")) {
@@ -236,21 +233,17 @@ public class DimensionNormalizationService {
 
         int n = Integer.parseInt(timeExpression.substring(5));
         
-        // 查询最新时间
-        String latestTimeStr = indicatorFactRepository.findMaxTimeIdByTableId(tableId);
-        if (latestTimeStr == null) {
-            return Collections.emptyList();
-        }
-
-        LocalDate latest = LocalDate.parse(latestTimeStr, DateTimeFormatter.ISO_DATE);
+        // 返回近N个月的月份标识符列表（简化计算）
         List<String> result = new ArrayList<>();
-
+        LocalDate now = LocalDate.now();
+        
         for (int i = 0; i < n; i++) {
-            LocalDate lastDayOfMonth = latest.with(TemporalAdjusters.lastDayOfMonth());
-            result.add(lastDayOfMonth.toString());
-            latest = latest.minusMonths(1);
+            LocalDate date = now.minusMonths(i);
+            // 格式：YYYY-MM（月度数据）
+            String timeId = String.format("%d-%02d", date.getYear(), date.getMonthValue());
+            result.add(timeId);
         }
-
+        
         Collections.reverse(result);
         return result;
     }

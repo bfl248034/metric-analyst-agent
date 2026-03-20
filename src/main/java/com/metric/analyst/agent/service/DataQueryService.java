@@ -8,6 +8,7 @@ import com.metric.analyst.agent.repository.DataSourceRepository;
 import com.metric.analyst.agent.repository.DataTableRepository;
 import com.metric.analyst.agent.service.datasource.DynamicDataSourceManager;
 import com.metric.analyst.agent.service.datasource.DynamicQueryBuilder;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -277,10 +278,12 @@ public class DataQueryService {
         private String message;
         private int count;
         private BigDecimal latestValue;
+        private BigDecimal latestYoy;      // 最新同比
+        private BigDecimal latestMom;      // 最新环比
         private List<DataRow> rows;
         private List<RankingItem> ranking;
         private TrendInfo trend;
-        
+
         public static QueryResult empty() {
             QueryResult r = new QueryResult();
             r.success = true;
@@ -289,7 +292,7 @@ public class DataQueryService {
             r.ranking = Collections.emptyList();
             return r;
         }
-        
+
         public static QueryResult error(String message) {
             QueryResult r = new QueryResult();
             r.success = false;

@@ -1,60 +1,73 @@
 ---
 name: metric-query
-description: This skill should be used when the user wants to query a specific metric value with dimensions like region, time, education level, etc. It supports single metric queries and multi-dimensional filtering.
+description: 查询各类指标的具体数值，支持多维度筛选。适用于单指标查询、多地区对比、趋势分析、排名查询等场景。
 ---
 
 # Metric Query Skill - 指标查询技能
 
 ## 功能说明
 
-用于查询各类指标的具体数值，支持多维度筛选。
+用于查询各类指标的具体数值，支持多维度筛选和复杂分析场景。
 
 ## 适用场景
 
-- 查询某地区某时间的指标数值
-- 按维度筛选（地区、时间、学历、产业链环节等）
-- 单指标精确查询
+| 场景类型 | 示例 |
+|---------|------|
+| 单指标查询 | "北京招聘薪资是多少" |
+| 多地区对比 | "对比北京上海广东的招聘数量" |
+| 趋势分析 | "北京招聘数量最近6个月趋势" |
+| 排名查询 | "各省份招聘薪资排名" |
 
-## 可用维度
+## 可用指标
+
+| 指标名称 | 指标ID | 说明 | 单位 |
+|---------|--------|------|------|
+| 招聘岗位数量 | I_RPA_ICN_RAE_POSITION_NUM | 企业发布的招聘岗位数量 | 个 |
+| 招聘市场主体数量 | I_RPA_ICN_RAE_COMPANY_NUM | 参与招聘的企业主体数量 | 个 |
+| 招聘岗位平均薪酬 | I_RPA_ICN_RAE_SALARY_AMOUNT | 招聘岗位的平均薪资水平 | 元 |
+| 新增企业数量 | I_RPA_ICN_MKE_COMPANY_ADD_NUM | 新注册登记的企业数量 | 个 |
+| 注销企业数量 | I_RPA_ICN_MKE_COMPANY_CANCEL_NUM | 注销登记的企业数量 | 个 |
+| 在营企业数量 | I_RPA_ICN_MKE_COMPANY_ON_NUM | 处于在营状态的企业总量 | 个 |
+| 专利申请数量 | I_RPA_ICN_PAT_APPLICATION_NUM | 提交的专利申请数量 | 个 |
+| 政府采购金额 | I_RPA_ICN_GVP_AMOUNT | 政府采购项目的成交金额 | 万元 |
+| 政府采购数量 | I_RPA_ICN_GVP_NUM | 政府采购项目的成交数量 | 个 |
+| 政府采购平均价格 | I_RPA_ICN_GVP_AMOUNT_AVG | 政府采购项目的平均成交价格 | 万元/个 |
+
+## 支持维度
 
 | 维度ID | 维度名称 | 示例值 |
 |--------|----------|--------|
-| region | 地区 | 110000(北京), 310000(上海), 100000(全国) |
-| time | 时间 | 202401, recent_3 |
-| education | 学历 | 1(博士), 2(硕士), 3(本科) |
-| industry_chain | 产业链环节 | material(材料), component(零部件) |
-| company_type | 企业类型 | enterprise(企业), research(研究机构) |
+| region | 地区 | 110000(北京), 310000(上海), 100000(全国), 省级, 市级 |
+| time | 时间 | latest(最新), last:N(近N期), 2024-03(具体月份) |
+| education | 学历 | TOTAL(汇总), RAE_EDU_6(本科), RAE_EDU_7(硕士) |
+| economic_type | 经济类型 | TOTAL, MKE_ECO_3(私营), MKE_ECO_1(国有) |
+| spe_tag | 特殊资质 | TOTAL, MKE_SPE_4(高新技术企业) |
+| patent_type | 专利类型 | TOTAL, PAT_PTT_2(发明专利) |
+| company_type | 申请人类型 | TOTAL, RPA_CTP_1(企业) |
+| data_attr | 数据属性 | DAT_1(当期), DAT_2(累计) |
+| icn_chain_area | 产业链领域 | ICN_CHAIN_6 |
+| icn_chain_link | 产业链环节 | ICN_CHAIN_6 |
 
-## 查询示例
+## 查询流程
 
-### 示例1：地区+时间查询
-用户：北京上个月招聘了多少人？
-- 指标：招聘数量 (recruitment_count)
-- 地区：110000 (北京)
-- 时间：recent_1 (最近1期)
-
-### 示例2：多维度查询
-用户：北京本科招聘数量
-- 指标：招聘数量
-- 地区：110000 (北京)
-- 学历：3 (本科)
-- 时间：latest (最新)
-
-### 示例3：全国查询
-用户：全国上个月专利数量
-- 指标：专利数量 (patent_count)
-- 地区：100000 (全国)
-- 时间：recent_1
-
-## 工具使用
-
-1. **metric_retrieval** - 根据描述匹配指标
-2. **dimension_parse** - 解析维度值
-3. **sql_execute** - 执行数据查询
+```
+用户输入
+    ↓
+指标识别（BM25+向量+同义词+大模型精排）
+    ↓
+维度标准化（地区/时间/其他维度）
+    ↓
+动态SQL构建（根据 db_data_dimension 配置）
+    ↓
+数据查询（参数化查询）
+    ↓
+结果加工 + 洞察生成
+```
 
 ## 注意事项
 
-- 地区编码使用6位国标编码
-- 时间支持：YYYYMM 格式 或 recent_N 格式
-- 如果维度值不明确，使用默认值
+- 地区编码使用6位国标编码（如110000=北京）
+- 时间支持：latest(最新)/last:N(近N期)/YYYY-MM格式
+- 未指定的维度使用 db_data_dimension 中的默认值
 - 数值结果保留2位小数
+- 排名查询默认返回TOP20
