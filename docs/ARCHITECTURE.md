@@ -48,7 +48,7 @@
 │                           ↓                              │
 │  ┌─────────────────────────────────────────────────┐    │
 │  │ ToolHook: Pre-tool-call（阶段2：维度标准化）    │    │
-│  │ - 地区：模型识别名称 → 后端编码 + region_level  │    │
+│  │ - 地区：模型识别名称 → 后端编码 + region_level_num  │    │
 │  │ - 时间：动态计算（最新/近N期/超范围降级）       │    │
 │  │ - 其他：默认值填充                              │    │
 │  └─────────────────────────────────────────────────┘    │
@@ -93,7 +93,7 @@
 
 **地区级别字段（关键设计）**：
 ```sql
-region_level VARCHAR(20) -- 全国/省级/市级/区县级
+region_level_num VARCHAR(20) -- 全国/省级/市级/区县级
 ```
 
 **10张事实表**：
@@ -114,7 +114,7 @@ region_level VARCHAR(20) -- 全国/省级/市级/区县级
 **数据示例**：
 
 ```
-time_id    | region_id | region_level | education_id | economic_type_id | fact_value | value_mom | value_yoy
+time_id    | region_id | region_level_num | education_id | economic_type_id | fact_value | tb_fact_value | hb_fact_value
 -----------|-----------|--------------|--------------|------------------|------------|-----------|----------
 2024-02-29 | 100000    | 全国         | TOTAL        | TOTAL            | 15000      | 4.5       | 6.8
 2024-02-29 | 110000    | 省级         | RAE_EDU_6    | TOTAL            | 20000      | 5.5       | 9.0
@@ -140,6 +140,10 @@ time_id    | region_id | region_level | education_id | economic_type_id | fact_v
 | `embedding_json` | 预计算向量 | `[0.23,-0.56,0.89,...]` |
 | `indexed` | 是否已建立向量索引 | true/false |
 
+#### db_data_source (动态数据源登记)
+
+#### db_data_table (ADS数据表信息登记)
+
 #### db_data_dimension（维度定义）
 
 | 字段 | 说明 | 示例 |
@@ -147,6 +151,7 @@ time_id    | region_id | region_level | education_id | economic_type_id | fact_v
 | `table_id` | 关联事实表 | `ads_rpa_w_icn_recruit_salary_amount_m` |
 | `dimension_id` | 维度标识 | `region`/`education`/`time`/`economic_type` |
 | `dimension_name` | 维度名称 | 地区/学历/时间/经济类型 |
+| `dimension_code` | 数据表维度字段 | `region_id`/`education_id`/`time_id`/`economic_type_id` |
 | `is_common` | 是否公共维度 | 1是，0否 |
 | `is_required` | 是否必填 | 1是，0否 |
 | `default_value` | 默认值 | `TOTAL`/`100000`/`DAT_1`/`ICN_CHAIN_6` |
@@ -174,6 +179,7 @@ time_id    | region_id | region_level | education_id | economic_type_id | fact_v
 | 字段 | 说明 | 示例 |
 |------|------|------|
 | `dimension_id` | 维度标识 | `region` |
+| `dimension_name` | 维度名称 | `地区` |
 | `value_code` | 值编码 | `110000` |
 | `value_name` | 值名称 | 北京市 |
 | `synonyms` | 同义词 | 北京,帝都,京城 |
@@ -284,30 +290,7 @@ LIMIT 10;
 ```java
 @Component
 public class IndicatorVectorStore {
-    private Map<String, float[]> embeddings = new ConcurrentHashMap<>();
-    
-    @PostConstruct
-    public void load() {
-        // 启动时从MySQL加载：indicator_id -> float[1024]
-        List<Indicator> list = indicatorRepository.findAll();
-        list.forEach(ind -> embeddings.put(
-            ind.getIndicatorId(),
-            JSON.parseArray(ind.getEmbeddingJson(), float[].class)
-        ));
-    }
-    
-    public List<IndicatorScore> search(String userQuery) {
-        // 调用DashScope API获取用户输入embedding
-        float[] queryVector = embeddingClient.embed(userQuery);
-        
-        // 内存计算cosine similarity
-        return embeddings.entrySet().stream()
-            .map(e -> new IndicatorScore(e.getKey(), 
-                cosineSimilarity(queryVector, e.getValue())))
-            .sorted(Comparator.comparing(IndicatorScore::score).reversed())
-            .limit(10)
-            .collect(Collectors.toList());
-    }
+   
 }
 // 内存占用：1000指标 × 1024维 × 4字节 ≈ 4MB
 ```
@@ -392,7 +375,7 @@ public class DimensionNormalizationHook implements ToolHook {
             // 识别分组查询（各省份/各市）
             if (isMultiRegionKeyword(regionInput)) {
                 String level = parseRegionLevel(regionInput); // 省级/市级
-                params.put("region_level", level);
+                params.put("region_level_num", level);
                 params.remove("region");
             } else {
                 // 具体地区标准化
@@ -430,7 +413,7 @@ public class DimensionNormalizationHook implements ToolHook {
 
 | 维度 | 处理方式 | 细节 |
 |------|----------|------|
-| **地区** | 模型自识别名称 → 后端编码 | 关键词"各省份"→`region_level='省级'`；具体"北京"→`region='110000'` |
+| **地区** | 模型自识别名称 → 后端编码 | 关键词"各省份"→`region_level_num='省级'`；具体"北京"→`region='110000'` |
 | **时间** | 动态计算 | 未指定→最新；近N期→倒推N个月取最后一天；超范围→降级最新 |
 | **其他** | 默认值填充 | 未指定用`db_data_dimension.default_value`（TOTAL/DAT_1） |
 
@@ -471,13 +454,7 @@ public class MetricQuerySkill implements Skill {
     }
     
     @Tool(description = "查询指标当前值")
-    public MetricResult queryCurrentValue(
-        @ToolParam(description = "指标编码") String indicatorId,
-        @ToolParam(description = "地区编码") String region,
-        @ToolParam(description = "地区级别（各省份/各市时用）") String regionLevel,
-        @ToolParam(description = "学历编码") String education,
-        @ToolParam(description = "时间或时间列表") Object time,
-        @ToolParam(description = "数据属性") String dataAttr) {
+    public MetricResult queryCurrentValue() {
         
         // 构建SQL
         String sql = buildSql(indicatorId, region, regionLevel, education, time, dataAttr);
@@ -495,12 +472,12 @@ public class MetricQuerySkill implements Skill {
 }
 ```
 
-#### SQL构建（分组查询差异化）
+#### SQL构建（分组查询差异化）   注意：保持维度查询条件的完整性，未指定用`db_data_dimension.default_value`（TOTAL/DAT_1）
 
 ```sql
 -- 场景1：具体地区+具体时间（单条记录）
 SELECT * FROM ads_rpa_w_icn_recruit_salary_amount_m
-WHERE time_id = '2024-02-29'
+WHERE indicator_id='**' AND time_id = '2024-02-29'
   AND region_id = '110000'
   AND education_id = 'RAE_EDU_6'
   AND economic_type_id = 'TOTAL'
@@ -509,7 +486,7 @@ WHERE time_id = '2024-02-29'
 -- 场景2：各省份（地区级别查询）
 SELECT region_id, fact_value, value_mom 
 FROM ads_rpa_w_icn_recruit_salary_amount_m
-WHERE region_level = '省级'  -- 关键：使用region_level
+WHERE indicator_id='**' AND region_level_num = '省级'  -- 关键：使用region_level
   AND education_id = 'TOTAL'
   AND time_id = '2024-02-29'
 ORDER BY fact_value DESC;
@@ -517,7 +494,7 @@ ORDER BY fact_value DESC;
 -- 场景3：不同学历（排除TOTAL）
 SELECT education_id, fact_value 
 FROM ads_rpa_w_icn_recruit_salary_amount_m
-WHERE region_id = '110000'
+WHERE  indicator_id='**' AND region_id = '110000'
   AND education_id != 'TOTAL'  -- 关键：排除汇总值
   AND time_id = '2024-02-29'
 ORDER BY fact_value DESC;
@@ -525,8 +502,9 @@ ORDER BY fact_value DESC;
 -- 场景4：近6个月趋势（时间列表）
 SELECT time_id, fact_value, value_mom 
 FROM ads_rpa_w_icn_recruit_salary_amount_m
-WHERE time_id IN ('2023-09-30','2023-10-31',...,'2024-02-29')
-  AND region_id = '110000'
+WHERE  indicator_id='**' AND time_id IN ('2023-09-30','2023-10-31',...,'2024-02-29')
+  AND region_id = '110000' AND education_id = 'TOTAL'
+  AND data_attr_id = 'DAT_1'
 ORDER BY time_id;
 ```
 
@@ -668,13 +646,13 @@ public class InsightGenerationHook implements AgentHook {
 
 | 维度 | 处理方式 | 特殊设计 |
 |------|----------|----------|
-| 地区 | 模型自识别→后端编码 | `region_level`字段区分全国/省/市 |
+| 地区 | 模型自识别→后端编码 | `region_level_num`字段区分全国/省/市 |
 | 时间 | 动态计算 | 取频率最后一天（YYYY-MM-DD），超范围自动降级 |
 | 其他 | 默认值填充 | 未指定用`default_value`（TOTAL/DAT_1） |
 
 ### 6.4 分组查询差异化
 
-- **地区分组**：`region_level='省级'`（包含该级别所有地区）
+- **地区分组**：`region_level_num='省级'`（包含该级别所有地区）
 - **其他维度分组**：`xxx_id!='TOTAL'`（排除汇总，展开明细）
 
 ### 6.5 预聚合数据模型
