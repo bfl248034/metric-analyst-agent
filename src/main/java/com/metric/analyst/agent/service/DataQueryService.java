@@ -22,7 +22,8 @@ import java.sql.*;
 import java.util.*;
 
 /**
- * 数据查询服务 - 基于 init_mysql.sql 表结构
+ * 数据查询服务 - 调试版本（字符串拼接 SQL，方便查看）
+ * ⚠️ 注意：此版本存在 SQL 注入风险，仅用于调试
  * 
  * 架构：
  * 1. db_data_source: 数据源配置（host/port/database/username/password）
@@ -78,7 +79,7 @@ public class DataQueryService {
     }
     
     /**
-     * 执行标准查询
+     * 执行标准查询（使用 Statement 直接执行完整 SQL）
      */
     private QueryResult executeStandardQuery(
             DataTable dataTable,
@@ -86,53 +87,47 @@ public class DataQueryService {
             List<DataDimension> dimensionConfigs,
             DimensionNormalizationService.NormalizedDimensions dimensions) {
         
-        // 构建 SQL
+        // 构建 SQL（已包含所有参数值）
         DynamicQueryBuilder.SqlBuildResult sqlResult = queryBuilder.buildQuerySql(
             dataTable, dimensionConfigs, dimensions);
         
-        log.debug("Executing SQL: {} with params: {}", sqlResult.getSql(), sqlResult.getParams());
+        String finalSql = sqlResult.getSql();
+        log.info("Executing SQL: {}", finalSql);
         
-        // 执行查询
+        // 执行查询（使用 Statement 而不是 PreparedStatement）
         List<DataRow> rows = new ArrayList<>();
         try (Connection conn = dataSourceManager.getConnection(dataSource);
-             PreparedStatement stmt = conn.prepareStatement(sqlResult.getSql())) {
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(finalSql)) {
             
-            // 设置参数
-            for (int i = 0; i < sqlResult.getParams().size(); i++) {
-                stmt.setObject(i + 1, sqlResult.getParams().get(i));
-            }
-            
-            // 执行查询
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    DataRow row = new DataRow();
-                    row.setTimeId(rs.getString(dataTable.getTimeColumn()));
-                    row.setRegionId(rs.getString(dataTable.getRegionColumn()));
-                    row.setValue(rs.getBigDecimal(dataTable.getValueColumn()));
-                    
-                    // 获取其他维度值（使用 dimension_code）
-                    Map<String, String> dimValues = new HashMap<>();
-                    for (DataDimension dim : dimensionConfigs) {
-                        if (dim.getDimensionCode() != null && !dim.getDimensionCode().isEmpty()) {
-                            try {
-                                String val = rs.getString(dim.getDimensionCode());
-                                if (val != null) {
-                                    dimValues.put(dim.getDimensionId(), val);
-                                }
-                            } catch (SQLException e) {
-                                // 列可能不存在，忽略
+            while (rs.next()) {
+                DataRow row = new DataRow();
+                row.setTimeId(rs.getString(dataTable.getTimeColumn()));
+                row.setRegionId(rs.getString(dataTable.getRegionColumn()));
+                row.setValue(rs.getBigDecimal(dataTable.getValueColumn()));
+                
+                // 获取其他维度值（使用 dimension_code）
+                Map<String, String> dimValues = new HashMap<>();
+                for (DataDimension dim : dimensionConfigs) {
+                    if (dim.getDimensionCode() != null && !dim.getDimensionCode().isEmpty()) {
+                        try {
+                            String val = rs.getString(dim.getDimensionCode());
+                            if (val != null) {
+                                dimValues.put(dim.getDimensionId(), val);
                             }
+                        } catch (SQLException e) {
+                            // 列可能不存在，忽略
                         }
                     }
-                    row.setDimensionValues(dimValues);
-                    
-                    rows.add(row);
                 }
+                row.setDimensionValues(dimValues);
+                
+                rows.add(row);
             }
             
         } catch (SQLException e) {
-            log.error("SQL execution failed", e);
-            return QueryResult.error("查询执行失败: " + e.getMessage());
+            log.error("SQL execution failed. SQL: {}", finalSql, e);
+            return QueryResult.error("查询执行失败: " + e.getMessage() + ", SQL: " + finalSql);
         }
         
         return processResults(rows, dataTable);
@@ -147,36 +142,31 @@ public class DataQueryService {
             List<DataDimension> dimensionConfigs,
             String regionLevel) {
         
-        // 构建排名 SQL
+        // 构建排名 SQL（已包含所有参数值）
         DynamicQueryBuilder.SqlBuildResult sqlResult = queryBuilder.buildRankingSql(
             dataTable, dimensionConfigs, regionLevel, 20);
         
-        log.debug("Executing ranking SQL: {}", sqlResult.getSql());
+        String finalSql = sqlResult.getSql();
+        log.info("Executing Ranking SQL: {}", finalSql);
         
         List<RankingItem> ranking = new ArrayList<>();
         
         try (Connection conn = dataSourceManager.getConnection(dataSource);
-             PreparedStatement stmt = conn.prepareStatement(sqlResult.getSql())) {
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(finalSql)) {
             
-            // 设置参数
-            for (int i = 0; i < sqlResult.getParams().size(); i++) {
-                stmt.setObject(i + 1, sqlResult.getParams().get(i));
-            }
-            
-            try (ResultSet rs = stmt.executeQuery()) {
-                int rank = 1;
-                while (rs.next()) {
-                    ranking.add(new RankingItem(
-                        rs.getString(dataTable.getRegionColumn()),
-                        rs.getBigDecimal("total_value"),
-                        rank++
-                    ));
-                }
+            int rank = 1;
+            while (rs.next()) {
+                ranking.add(new RankingItem(
+                    rs.getString(dataTable.getRegionColumn()),
+                    rs.getBigDecimal("total_value"),
+                    rank++
+                ));
             }
             
         } catch (SQLException e) {
-            log.error("Ranking query failed", e);
-            return QueryResult.error("排名查询失败: " + e.getMessage());
+            log.error("Ranking query failed. SQL: {}", finalSql, e);
+            return QueryResult.error("排名查询失败: " + e.getMessage() + ", SQL: " + finalSql);
         }
         
         QueryResult result = new QueryResult();

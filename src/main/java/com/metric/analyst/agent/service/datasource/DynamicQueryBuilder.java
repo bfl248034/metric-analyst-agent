@@ -13,20 +13,20 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * 动态 SQL 构建器
- * 根据 db_data_dimension 配置动态构建查询 SQL
+ * 动态 SQL 构建器 - 调试版本（字符串拼接，方便查看完整 SQL）
+ * ⚠️ 注意：此版本存在 SQL 注入风险，仅用于调试
  */
 @Slf4j
 @Component
 public class DynamicQueryBuilder {
 
     /**
-     * 构建查询 SQL（参数化）
+     * 构建查询 SQL（字符串拼接方式，方便调试）
      * 
      * @param dataTable 数据表配置
      * @param dimensions 维度定义列表
      * @param normalizedDimensions 标准化的维度值
-     * @return SQL 构建结果
+     * @return SQL 构建结果（可直接执行的完整 SQL）
      */
     public SqlBuildResult buildQuerySql(
             DataTable dataTable,
@@ -34,7 +34,6 @@ public class DynamicQueryBuilder {
             DimensionNormalizationService.NormalizedDimensions normalizedDimensions) {
         
         StringBuilder sql = new StringBuilder();
-        List<Object> params = new ArrayList<>();
         
         // SELECT 部分
         sql.append("SELECT ");
@@ -78,12 +77,10 @@ public class DynamicQueryBuilder {
                    .append("SELECT DISTINCT ").append(dataTable.getTimeColumn()).append(" ")
                    .append("FROM ").append(dataTable.getTableName()).append(" ")
                    .append("ORDER BY ").append(dataTable.getTimeColumn()).append(" DESC ")
-                   .append("LIMIT ?)");
-                params.add(n);
+                   .append("LIMIT ").append(n).append(")");
             } else {
-                // 具体时间
-                sql.append(" AND ").append(dataTable.getTimeColumn()).append(" = ?");
-                params.add(timeCode);
+                // 具体时间 - 直接拼接（注意：这里假设 timeCode 是安全的）
+                sql.append(" AND ").append(dataTable.getTimeColumn()).append(" = '").append(escapeSql(timeCode)).append("'");
             }
         }
         
@@ -122,18 +119,20 @@ public class DynamicQueryBuilder {
             
             // 排除 TOTAL（多值查询）
             if ("TOTAL".equals(valueCode)) {
-                sql.append(" AND ").append(columnName).append(" != ?");
-                params.add("TOTAL");
+                sql.append(" AND ").append(columnName).append(" != 'TOTAL'");
             } else {
-                sql.append(" AND ").append(columnName).append(" = ?");
-                params.add(valueCode);
+                // 直接拼接值（注意：这里假设 valueCode 是安全的）
+                sql.append(" AND ").append(columnName).append(" = '").append(escapeSql(valueCode)).append("'");
             }
         }
         
         // ORDER BY
         sql.append(" ORDER BY ").append(dataTable.getTimeColumn());
         
-        return new SqlBuildResult(sql.toString(), params);
+        String finalSql = sql.toString();
+        log.info("Generated SQL: {}", finalSql);
+        
+        return new SqlBuildResult(finalSql, Collections.emptyList());
     }
     
     /**
@@ -146,7 +145,6 @@ public class DynamicQueryBuilder {
             int topN) {
         
         StringBuilder sql = new StringBuilder();
-        List<Object> params = new ArrayList<>();
         
         sql.append("SELECT ")
            .append(dataTable.getRegionColumn()).append(", ")
@@ -170,11 +168,23 @@ public class DynamicQueryBuilder {
         
         sql.append(" GROUP BY ").append(dataTable.getRegionColumn()).append(" ")
            .append("ORDER BY total_value DESC ")
-           .append("LIMIT ?");
+           .append("LIMIT ").append(topN);
         
-        params.add(topN);
+        String finalSql = sql.toString();
+        log.info("Generated Ranking SQL: {}", finalSql);
         
-        return new SqlBuildResult(sql.toString(), params);
+        return new SqlBuildResult(finalSql, Collections.emptyList());
+    }
+    
+    /**
+     * 简单的 SQL 转义（仅处理单引号）
+     * ⚠️ 这不是完整的 SQL 注入防护
+     */
+    private String escapeSql(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("'", "''");
     }
     
     /**
@@ -184,7 +194,7 @@ public class DynamicQueryBuilder {
     @Builder
     public static class SqlBuildResult {
         private final String sql;
-        private final List<Object> params;
+        private final List<Object> params;  // 调试版本此列表始终为空
         
         public Object[] getParamsArray() {
             return params.toArray();
