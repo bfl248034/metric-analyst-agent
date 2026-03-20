@@ -37,13 +37,13 @@ public class DynamicQueryBuilder {
         List<Object> params = new ArrayList<>();
         
         // SELECT 部分
-        sql.append("SELECT ")
-           .append(dataTable.getTimeColumn()).append(", ");
+        sql.append("SELECT ");
+//           .append(dataTable.getTimeColumn()).append(", ");
         
         // 添加地区列
-        if (dataTable.getRegionColumn() != null) {
-            sql.append(dataTable.getRegionColumn()).append(", ");
-        }
+//        if (dataTable.getRegionColumn() != null) {
+//            sql.append(dataTable.getRegionColumn()).append(", ");
+//        }
         
         // 添加所有维度列（使用 dimension_code）
         for (DataDimension dim : dimensions) {

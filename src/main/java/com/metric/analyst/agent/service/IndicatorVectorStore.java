@@ -2,6 +2,7 @@ package com.metric.analyst.agent.service;
 
 import com.alibaba.cloud.ai.dashscope.api.DashScopeApi;
 import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatModel;
+import com.alibaba.cloud.ai.dashscope.embedding.DashScopeEmbeddingModel;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.metric.analyst.agent.entity.Indicator;
@@ -31,34 +32,15 @@ import java.util.stream.Collectors;
 public class IndicatorVectorStore {
 
     private final IndicatorRepository indicatorRepository;
-    private final DashScopeChatModel chatModel;
+    private final DashScopeEmbeddingModel embeddingModel;
     private final ObjectMapper objectMapper;
-    private final RestTemplate restTemplate = new RestTemplate();
-
-    @Value("${spring.ai.dashscope.api-key:}")
-    private String apiKey;
-
-    private static final String EMBEDDING_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/embeddings/text-embedding/text-embedding";
-    private static final String EMBEDDING_MODEL = "text-embedding-v2";
-
     // 内存存储：indicator_id -> embedding_vector
     private Map<String, float[]> embeddings = new ConcurrentHashMap<>();
 
     @PostConstruct
     public void load() {
         log.info("Loading indicator embeddings into memory...");
-        List<Indicator> indicators = indicatorRepository.findByIndexedTrue();
-        
-        for (Indicator ind : indicators) {
-            if (ind.getEmbeddingJson() != null && !ind.getEmbeddingJson().isEmpty()) {
-                try {
-                    float[] vector = objectMapper.readValue(ind.getEmbeddingJson(), float[].class);
-                    embeddings.put(ind.getIndicatorId(), vector);
-                } catch (Exception e) {
-                    log.warn("Failed to parse embedding for indicator: {}", ind.getIndicatorId());
-                }
-            }
-        }
+        initializeEmbeddings();
         log.info("Loaded {} indicator embeddings", embeddings.size());
     }
 
@@ -87,43 +69,7 @@ public class IndicatorVectorStore {
      * 调用DashScope API获取embedding
      */
     private float[] embed(String text) {
-        if (apiKey == null || apiKey.isEmpty()) {
-            log.warn("DashScope API key not configured, returning zero vector");
-            return new float[1536]; // text-embedding-v2 returns 1536 dimensions
-        }
-
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Authorization", "Bearer " + apiKey);
-
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("model", EMBEDDING_MODEL);
-            requestBody.put("input", Map.of("texts", List.of(text)));
-
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(EMBEDDING_API_URL, request, String.class);
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                JsonNode root = objectMapper.readTree(response.getBody());
-                JsonNode embeddingNode = root.path("output").path("embeddings").get(0).path("embedding");
-                
-                if (embeddingNode.isArray()) {
-                    float[] vector = new float[embeddingNode.size()];
-                    for (int i = 0; i < embeddingNode.size(); i++) {
-                        vector[i] = (float) embeddingNode.get(i).asDouble();
-                    }
-                    return vector;
-                }
-            }
-            
-            log.error("Failed to get embedding from DashScope: {}", response.getBody());
-            return new float[1536];
-            
-        } catch (Exception e) {
-            log.error("Error calling DashScope embedding API", e);
-            return new float[1536];
-        }
+    	return embeddingModel.embed(text);
     }
 
     /**
@@ -174,6 +120,13 @@ public class IndicatorVectorStore {
         for (Indicator indicator : allIndicators) {
             // 跳过已有 embedding 的指标
             if (indicator.getEmbeddingJson() != null && !indicator.getEmbeddingJson().isEmpty()) {
+            	String[] vecStr = indicator.getEmbeddingJson().split(", ");
+            	 // 同时更新内存缓存
+            	float[] vector = new float[vecStr.length];
+            	for(int i =0;i<vector.length;i++) {
+            		vector[i] = Float.parseFloat(vecStr[i]);
+            	}
+                embeddings.put(indicator.getIndicatorId(), vector);
                 continue;
             }
             
@@ -183,8 +136,15 @@ public class IndicatorVectorStore {
                 float[] vector = embed(textToEmbed);
                 
                 // 保存到数据库
-                String embeddingJson = objectMapper.writeValueAsString(vector);
-                indicator.setEmbeddingJson(embeddingJson);
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < vector.length; i++) {
+                    sb.append(String.format("%.10f", vector[i]));
+                    if (i < vector.length - 1) {
+                        sb.append(", "); // 如果需要，可以在元素之间添加逗号和空格
+                    }
+                }
+                String result = sb.toString();
+                indicator.setEmbeddingJson(result);
                 indicator.setIndexed(true);
                 indicator.setIndexVersion(System.currentTimeMillis());
                 indicator.setLastIndexedAt(java.time.LocalDateTime.now());
@@ -197,7 +157,7 @@ public class IndicatorVectorStore {
                 log.debug("Generated embedding for indicator: {}", indicator.getIndicatorId());
                 
                 // 避免触发 API 限流
-                Thread.sleep(100);
+//                Thread.sleep(100);
                 
             } catch (Exception e) {
                 failCount++;
