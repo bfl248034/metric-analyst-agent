@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * 数据维度关联表 - db_data_dimension
+ * 对应 init_mysql.sql 结构
  */
 @Data
 @Entity
@@ -33,6 +34,7 @@ public class DataDimension {
 
     @Column(name = "dimension_code", length = 64)
     private String dimensionCode;
+    // 数据表中的实际字段名
 
     @Column(name = "is_common")
     private Boolean isCommon;
@@ -45,6 +47,7 @@ public class DataDimension {
 
     @Column(name = "dimension_type", length = 20)
     private String dimensionType;
+    // temporal/categorical/numerical
 
     @Column(name = "sort_order")
     private Integer sortOrder;

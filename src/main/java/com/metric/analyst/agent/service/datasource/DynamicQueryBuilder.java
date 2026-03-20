@@ -39,21 +39,20 @@ public class DynamicQueryBuilder {
         sql.append("SELECT ")
            .append(dataTable.getTimeColumn()).append(", ");
         
-        // 添加所有维度列
+        // 添加地区列
+        if (dataTable.getRegionColumn() != null) {
+            sql.append(dataTable.getRegionColumn()).append(", ");
+        }
+        
+        // 添加所有维度列（使用 dimension_code）
         for (DataDimension dim : dimensions) {
-            sql.append(dim.getDimensionId()).append("_id, ");
+            if (dim.getDimensionCode() != null && !dim.getDimensionCode().isEmpty()) {
+                sql.append(dim.getDimensionCode()).append(", ");
+            }
         }
         
         // 添加值列
         sql.append(dataTable.getValueColumn());
-        
-        // 添加环比、同比列（如果存在）
-        if (dataTable.getMomColumn() != null) {
-            sql.append(", ").append(dataTable.getMomColumn());
-        }
-        if (dataTable.getYoyColumn() != null) {
-            sql.append(", ").append(dataTable.getYoyColumn());
-        }
         
         // FROM 部分
         sql.append(" FROM ").append(dataTable.getTableName());
@@ -87,7 +86,10 @@ public class DynamicQueryBuilder {
             }
         }
         
-        // 处理其他维度
+        // 处理其他维度（使用 dimension_code 映射到实际字段）
+        Map<String, DataDimension> dimConfigMap = dimensions.stream()
+            .collect(Collectors.toMap(DataDimension::getDimensionId, d -> d, (a, b) -> a));
+        
         Map<String, DimensionNormalizationService.DimensionValue> allDims = new HashMap<>();
         allDims.putAll(normalizedDimensions.getExplicitDimensions());
         allDims.putAll(normalizedDimensions.getImplicitDimensions());
@@ -100,14 +102,19 @@ public class DynamicQueryBuilder {
                 continue; // 时间已处理
             }
             
-            String columnName = dimId + "_id";
+            // 获取维度配置，使用 dimension_code 作为字段名
+            DataDimension dimConfig = dimConfigMap.get(dimId);
+            if (dimConfig == null || dimConfig.getDimensionCode() == null) {
+                continue;
+            }
+            
+            String columnName = dimConfig.getDimensionCode();
             String valueCode = dimValue.getValueCode();
             
             // 地区特殊处理：级别查询 vs 具体编码
             if ("region".equals(dimId)) {
                 if ("省级".equals(valueCode) || "市级".equals(valueCode) || "全国".equals(valueCode)) {
-                    // 级别查询需要 GROUP BY，在查询时处理
-                    // 这里先不做筛选，由后续逻辑处理
+                    // 级别查询 - 跳过 WHERE，由 GROUP BY 处理
                     continue;
                 }
             }
@@ -140,7 +147,9 @@ public class DynamicQueryBuilder {
         StringBuilder sql = new StringBuilder();
         List<Object> params = new ArrayList<>();
         
-        sql.append("SELECT region_id, SUM(").append(dataTable.getValueColumn()).append(") as total_value ")
+        sql.append("SELECT ")
+           .append(dataTable.getRegionColumn()).append(", ")
+           .append("SUM(").append(dataTable.getValueColumn()).append(") as total_value ")
            .append("FROM ").append(dataTable.getTableName()).append(" ")
            .append("WHERE ").append(dataTable.getTimeColumn()).append(" = (")
            .append("SELECT MAX(").append(dataTable.getTimeColumn()).append(") FROM ")
@@ -148,15 +157,17 @@ public class DynamicQueryBuilder {
         
         // 根据地区级别筛选
         if ("省级".equals(regionLevel)) {
-            sql.append(" AND (region_id LIKE '__0000' OR region_id = '100000')");
+            sql.append(" AND (").append(dataTable.getRegionColumn()).append(" LIKE '__0000' OR ")
+               .append(dataTable.getRegionColumn()).append(" = '100000')");
         } else if ("市级".equals(regionLevel)) {
-            sql.append(" AND region_id LIKE '____00' AND region_id != '100000'");
+            sql.append(" AND ").append(dataTable.getRegionColumn()).append(" LIKE '____00' AND ")
+               .append(dataTable.getRegionColumn()).append(" != '100000'");
         }
         
         // 排除 TOTAL
-        sql.append(" AND region_id != 'TOTAL'");
+        sql.append(" AND ").append(dataTable.getRegionColumn()).append(" != 'TOTAL'");
         
-        sql.append(" GROUP BY region_id ")
+        sql.append(" GROUP BY ").append(dataTable.getRegionColumn()).append(" ")
            .append("ORDER BY total_value DESC ")
            .append("LIMIT ?");
         

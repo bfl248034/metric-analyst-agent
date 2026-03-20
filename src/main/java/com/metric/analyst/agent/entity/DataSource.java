@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 
 /**
  * 数据源配置表 - db_data_source
- * 支持 MySQL、Kylin 等多种数据源
+ * 对应 init_mysql.sql 结构
  */
 @Data
 @Entity
@@ -35,34 +35,29 @@ public class DataSource {
 
     @Column(name = "source_type", nullable = false, length = 20)
     private String sourceType;
-    // MYSQL, KYLIN, CLICKHOUSE, DORIS 等
+    // mysql/kylin/api
 
-    @Column(name = "jdbc_url", nullable = false, length = 512)
-    private String jdbcUrl;
+    @Column(name = "host", length = 256)
+    private String host;
+
+    @Column(name = "port")
+    private Integer port;
+
+    @Column(name = "database_name", length = 64)
+    private String databaseName;
 
     @Column(name = "username", length = 64)
     private String username;
 
-    @Column(name = "password", length = 128)
+    @Column(name = "password", length = 256)
     private String password;
 
-    @Column(name = "driver_class", length = 128)
-    private String driverClass;
+    @Column(name = "connection_params", columnDefinition = "TEXT")
+    private String connectionParams;
+    // JSON格式连接参数
 
-    @Column(name = "pool_size", nullable = false)
-    private Integer poolSize;
-
-    @Column(name = "connection_timeout")
-    private Integer connectionTimeout;
-
-    @Column(name = "query_timeout")
-    private Integer queryTimeout;
-
-    @Column(name = "enabled")
-    private Boolean enabled;
-
-    @Column(name = "remark", length = 256)
-    private String remark;
+    @Column(name = "is_active")
+    private Boolean isActive;
 
     @CreationTimestamp
     @Column(name = "created_at")
@@ -73,12 +68,24 @@ public class DataSource {
     private LocalDateTime updatedAt;
 
     /**
-     * 数据源类型常量
+     * 构建 JDBC URL
      */
+    public String buildJdbcUrl() {
+        if ("mysql".equalsIgnoreCase(sourceType)) {
+            String base = String.format("jdbc:mysql://%s:%d/%s", host, port, databaseName);
+            if (connectionParams != null && !connectionParams.isEmpty()) {
+                base += "?" + connectionParams.replaceAll("[{}\"]", "").replace(",", "&");
+            }
+            return base;
+        } else if ("kylin".equalsIgnoreCase(sourceType)) {
+            return String.format("jdbc:kylin://%s:%d/%s", host, port, databaseName);
+        }
+        return connectionParams;
+    }
+
     public static final class SourceType {
-        public static final String MYSQL = "MYSQL";
-        public static final String KYLIN = "KYLIN";
-        public static final String CLICKHOUSE = "CLICKHOUSE";
-        public static final String DORIS = "DORIS";
+        public static final String MYSQL = "mysql";
+        public static final String KYLIN = "kylin";
+        public static final String API = "api";
     }
 }

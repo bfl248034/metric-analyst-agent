@@ -93,7 +93,7 @@ public class MetricQueryTools {
             return String.format("未找到 %s 在 %s 的数据", metricName, regionName);
         }
 
-        // 从新的 DataRow 结构获取数据
+        // 从 DataRow 结构获取数据
         DataQueryService.DataRow latestRow = result.getRows().get(0);
 
         StringBuilder sb = new StringBuilder();
@@ -101,13 +101,6 @@ public class MetricQueryTools {
         sb.append(String.format("- 数值：%s %s\n",
                 latestRow.getValue() != null ? latestRow.getValue().toPlainString() : "N/A",
                 getUnit(metricName)));
-
-        if (latestRow.getYoy() != null) {
-            sb.append(String.format("- 同比增长：%.1f%%\n", latestRow.getYoy()));
-        }
-        if (latestRow.getMom() != null) {
-            sb.append(String.format("- 环比增长：%.1f%%\n", latestRow.getMom()));
-        }
 
         return sb.toString();
     }
@@ -156,7 +149,7 @@ public class MetricQueryTools {
             if (result.isSuccess() && result.getRows() != null && !result.getRows().isEmpty()) {
                 DataQueryService.DataRow row = result.getRows().get(0);
                 dataList.add(new MetricComparisonDTO.RegionData(
-                        regionName, row.getValue(), row.getYoy()));
+                        regionName, row.getValue(), null));
             }
         }
 
@@ -251,16 +244,11 @@ public class MetricQueryTools {
         for (DataQueryService.DataRow row : rows) {
             String timeStr = row.getTimeId();
             String bar = generateBar(row.getValue(), maxValue, 15);
-            sb.append(String.format("%s: %s %s %s",
+            sb.append(String.format("%s: %s %s %s\n",
                     timeStr,
                     row.getValue() != null ? row.getValue().toPlainString() : "N/A",
                     getUnit(metricName),
                     bar));
-            if (row.getMom() != null) {
-                String momSymbol = row.getMom().compareTo(BigDecimal.ZERO) > 0 ? "↑" : "↓";
-                sb.append(String.format(" (%s%.1f%%)", momSymbol, row.getMom().abs().doubleValue()));
-            }
-            sb.append("\n");
         }
 
         // 添加汇总统计

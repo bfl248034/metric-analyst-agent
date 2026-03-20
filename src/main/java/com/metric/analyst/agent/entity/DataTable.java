@@ -11,8 +11,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 /**
- * 数据表配置表 - db_data_table
- * 每张指标表对应一条记录
+ * 数据表登记 - db_data_table
+ * 对应 init_mysql.sql 结构
  */
 @Data
 @Entity
@@ -23,48 +23,42 @@ import java.time.LocalDateTime;
 public class DataTable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private Long id;
-
-    @Column(name = "table_id", unique = true, nullable = false, length = 128)
+    @Column(name = "table_id", length = 64)
     private String tableId;
 
-    @Column(name = "indicator_id", nullable = false, length = 64)
-    private String indicatorId;
+    @Column(name = "table_name", nullable = false, length = 128)
+    private String tableName;
+
+    @Column(name = "table_alias", length = 128)
+    private String tableAlias;
 
     @Column(name = "source_id", nullable = false, length = 64)
     private String sourceId;
 
-    @Column(name = "table_name", nullable = false, length = 128)
-    private String tableName;
-    // 实际的物理表名
+    @Column(name = "database_name", length = 64)
+    private String databaseName;
 
-    @Column(name = "value_column", nullable = false, length = 64)
-    private String valueColumn;
-    // 存储指标值的列名
+    @Column(name = "schema_name", length = 64)
+    private String schemaName;
 
-    @Column(name = "mom_column", length = 64)
-    private String momColumn;
-    // 环比列名
+    @Column(name = "table_type", length = 20)
+    private String tableType;
+    // fact(事实表)/dim(维度表)
 
-    @Column(name = "yoy_column", length = 64)
-    private String yoyColumn;
-    // 同比列名
+    @Column(name = "description", length = 500)
+    private String description;
 
-    @Column(name = "time_column", nullable = false, length = 64)
+    @Column(name = "time_column", length = 64)
     private String timeColumn;
-    // 时间维度列名
 
-    @Column(name = "frequency", length = 10)
-    private String frequency;
-    // M(月)/Q(季)/Y(年)
+    @Column(name = "region_column", length = 64)
+    private String regionColumn;
 
-    @Column(name = "enabled")
-    private Boolean enabled;
+    @Column(name = "value_column", length = 64)
+    private String valueColumn;
 
-    @Column(name = "remark", length = 256)
-    private String remark;
+    @Column(name = "is_active")
+    private Boolean isActive;
 
     @CreationTimestamp
     @Column(name = "created_at")

@@ -14,5 +14,5 @@ public interface DataSourceRepository extends JpaRepository<DataSource, Long> {
 
     Optional<DataSource> findBySourceId(String sourceId);
 
-    Optional<DataSource> findBySourceIdAndEnabledTrue(String sourceId);
+    Optional<DataSource> findBySourceIdAndIsActive(String sourceId, Boolean isActive);
 }

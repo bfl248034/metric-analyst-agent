@@ -47,26 +47,28 @@ public class DynamicDataSourceManager {
     private HikariDataSource createHikariDataSource(DataSource config) {
         HikariConfig hikariConfig = new HikariConfig();
         
-        hikariConfig.setJdbcUrl(config.getJdbcUrl());
+        String jdbcUrl = config.buildJdbcUrl();
+        hikariConfig.setJdbcUrl(jdbcUrl);
         hikariConfig.setUsername(config.getUsername());
         hikariConfig.setPassword(config.getPassword());
         hikariConfig.setDriverClassName(getDriverClass(config));
         
         // 连接池配置
-        hikariConfig.setMaximumPoolSize(config.getPoolSize() != null ? config.getPoolSize() : 10);
+        hikariConfig.setMaximumPoolSize(10);
         hikariConfig.setMinimumIdle(2);
-        hikariConfig.setConnectionTimeout(config.getConnectionTimeout() != null ? 
-            config.getConnectionTimeout() : 30000);
+        hikariConfig.setConnectionTimeout(30000);
         
         // 数据源名称
         hikariConfig.setPoolName("HikariPool-" + config.getSourceId());
         
         // Kylin 特殊配置
-        if (DataSource.SourceType.KYLIN.equals(config.getSourceType())) {
+        if (DataSource.SourceType.KYLIN.equalsIgnoreCase(config.getSourceType())) {
             hikariConfig.setConnectionTestQuery("SELECT 1");
             hikariConfig.setValidationTimeout(5000);
         }
 
+        log.debug("Hikari config - URL: {}, Driver: {}", jdbcUrl, getDriverClass(config));
+        
         return new HikariDataSource(hikariConfig);
     }
 
@@ -74,15 +76,9 @@ public class DynamicDataSourceManager {
      * 获取驱动类名
      */
     private String getDriverClass(DataSource config) {
-        if (config.getDriverClass() != null && !config.getDriverClass().isEmpty()) {
-            return config.getDriverClass();
-        }
-        
-        return switch (config.getSourceType()) {
+        return switch (config.getSourceType().toLowerCase()) {
             case DataSource.SourceType.MYSQL -> "com.mysql.cj.jdbc.Driver";
             case DataSource.SourceType.KYLIN -> "org.apache.kylin.jdbc.Driver";
-            case DataSource.SourceType.CLICKHOUSE -> "com.clickhouse.jdbc.ClickHouseDriver";
-            case DataSource.SourceType.DORIS -> "com.mysql.cj.jdbc.Driver";  // Doris 兼容 MySQL 协议
             default -> "com.mysql.cj.jdbc.Driver";
         };
     }

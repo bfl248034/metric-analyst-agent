@@ -20,12 +20,12 @@ import java.sql.*;
 import java.util.*;
 
 /**
- * 数据查询服务 - 基于动态数据源架构
+ * 数据查询服务 - 基于 init_mysql.sql 表结构
  * 
- * 架构变更：
- * 1. 每个指标对应独立的物理表（db_data_table）
- * 2. 维度字段定义在 db_data_dimension 中，动态构建 SQL
- * 3. 数据源配置在 db_data_source 中，支持 MySQL、Kylin 等多种数据源
+ * 架构：
+ * 1. db_data_source: 数据源配置（host/port/database/username/password）
+ * 2. db_data_table: 每张指标物理表配置（table_name, time_column, region_column, value_column）
+ * 3. db_data_dimension: 维度字段定义（dimension_id, dimension_code 映射到实际列）
  */
 @Slf4j
 @Service
@@ -50,11 +50,11 @@ public class DataQueryService {
         
         try {
             // 1. 获取表配置
-            DataTable dataTable = dataTableRepository.findByTableIdAndEnabledTrue(tableId)
+            DataTable dataTable = dataTableRepository.findByTableIdAndIsActive(tableId, true)
                 .orElseThrow(() -> new IllegalArgumentException("数据表不存在或已禁用: " + tableId));
             
             // 2. 获取数据源配置
-            DataSource dataSource = dataSourceRepository.findBySourceIdAndEnabledTrue(dataTable.getSourceId())
+            DataSource dataSource = dataSourceRepository.findBySourceIdAndIsActive(dataTable.getSourceId(), true)
                 .orElseThrow(() -> new IllegalArgumentException("数据源不存在或已禁用: " + dataTable.getSourceId()));
             
             // 3. 获取维度定义
@@ -102,37 +102,24 @@ public class DataQueryService {
             
             // 执行查询
             try (ResultSet rs = stmt.executeQuery()) {
-                ResultSetMetaData metaData = rs.getMetaData();
-                int columnCount = metaData.getColumnCount();
-                
                 while (rs.next()) {
                     DataRow row = new DataRow();
                     row.setTimeId(rs.getString(dataTable.getTimeColumn()));
-                    row.setRegionId(rs.getString("region_id"));
+                    row.setRegionId(rs.getString(dataTable.getRegionColumn()));
+                    row.setValue(rs.getBigDecimal(dataTable.getValueColumn()));
                     
-                    // 动态获取值列
-                    BigDecimal value = rs.getBigDecimal(dataTable.getValueColumn());
-                    row.setValue(value);
-                    
-                    // 获取环比、同比（如果存在）
-                    if (dataTable.getMomColumn() != null) {
-                        row.setMom(rs.getBigDecimal(dataTable.getMomColumn()));
-                    }
-                    if (dataTable.getYoyColumn() != null) {
-                        row.setYoy(rs.getBigDecimal(dataTable.getYoyColumn()));
-                    }
-                    
-                    // 获取其他维度值
+                    // 获取其他维度值（使用 dimension_code）
                     Map<String, String> dimValues = new HashMap<>();
                     for (DataDimension dim : dimensionConfigs) {
-                        String colName = dim.getDimensionId() + "_id";
-                        try {
-                            String val = rs.getString(colName);
-                            if (val != null) {
-                                dimValues.put(dim.getDimensionId(), val);
+                        if (dim.getDimensionCode() != null && !dim.getDimensionCode().isEmpty()) {
+                            try {
+                                String val = rs.getString(dim.getDimensionCode());
+                                if (val != null) {
+                                    dimValues.put(dim.getDimensionId(), val);
+                                }
+                            } catch (SQLException e) {
+                                // 列可能不存在，忽略
                             }
-                        } catch (SQLException e) {
-                            // 列可能不存在，忽略
                         }
                     }
                     row.setDimensionValues(dimValues);
@@ -178,7 +165,7 @@ public class DataQueryService {
                 int rank = 1;
                 while (rs.next()) {
                     ranking.add(new RankingItem(
-                        rs.getString("region_id"),
+                        rs.getString(dataTable.getRegionColumn()),
                         rs.getBigDecimal("total_value"),
                         rank++
                     ));
@@ -224,8 +211,6 @@ public class DataQueryService {
         // 最新值
         DataRow latest = rows.get(0);
         result.setLatestValue(latest.getValue());
-        result.setLatestMom(latest.getMom());
-        result.setLatestYoy(latest.getYoy());
         
         // 计算排名（按值排序）
         List<DataRow> sortedByValue = new ArrayList<>(rows);
@@ -292,8 +277,6 @@ public class DataQueryService {
         private String message;
         private int count;
         private BigDecimal latestValue;
-        private BigDecimal latestMom;
-        private BigDecimal latestYoy;
         private List<DataRow> rows;
         private List<RankingItem> ranking;
         private TrendInfo trend;
@@ -320,8 +303,6 @@ public class DataQueryService {
         private String timeId;
         private String regionId;
         private BigDecimal value;
-        private BigDecimal mom;
-        private BigDecimal yoy;
         private Map<String, String> dimensionValues = new HashMap<>();
     }
     

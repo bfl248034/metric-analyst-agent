@@ -11,13 +11,11 @@ import java.util.Optional;
  * 数据表配置仓库
  */
 @Repository
-public interface DataTableRepository extends JpaRepository<DataTable, Long> {
+public interface DataTableRepository extends JpaRepository<DataTable, String> {
 
     Optional<DataTable> findByTableId(String tableId);
 
-    List<DataTable> findByIndicatorId(String indicatorId);
-
     List<DataTable> findBySourceId(String sourceId);
 
-    Optional<DataTable> findByTableIdAndEnabledTrue(String tableId);
+    Optional<DataTable> findByTableIdAndIsActive(String tableId, Boolean isActive);
 }
