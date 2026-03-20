@@ -159,4 +159,70 @@ public class IndicatorVectorStore {
         private final String indicatorId;
         private final double score;
     }
+
+    /**
+     * 初始化所有指标的 embedding
+     * 为 embedding_json 为空的指标生成向量并保存到数据库
+     */
+    public void initializeEmbeddings() {
+        log.info("Initializing embeddings for all indicators...");
+        
+        List<Indicator> allIndicators = indicatorRepository.findAll();
+        int successCount = 0;
+        int failCount = 0;
+        
+        for (Indicator indicator : allIndicators) {
+            // 跳过已有 embedding 的指标
+            if (indicator.getEmbeddingJson() != null && !indicator.getEmbeddingJson().isEmpty()) {
+                continue;
+            }
+            
+            try {
+                // 生成 embedding 文本：指标名称 + 描述 + 标签
+                String textToEmbed = buildEmbeddingText(indicator);
+                float[] vector = embed(textToEmbed);
+                
+                // 保存到数据库
+                String embeddingJson = objectMapper.writeValueAsString(vector);
+                indicator.setEmbeddingJson(embeddingJson);
+                indicator.setIndexed(true);
+                indicator.setIndexVersion(System.currentTimeMillis());
+                indicator.setLastIndexedAt(java.time.LocalDateTime.now());
+                indicatorRepository.save(indicator);
+                
+                // 同时更新内存缓存
+                embeddings.put(indicator.getIndicatorId(), vector);
+                
+                successCount++;
+                log.debug("Generated embedding for indicator: {}", indicator.getIndicatorId());
+                
+                // 避免触发 API 限流
+                Thread.sleep(100);
+                
+            } catch (Exception e) {
+                failCount++;
+                log.error("Failed to generate embedding for indicator: {}", indicator.getIndicatorId(), e);
+            }
+        }
+        
+        log.info("Embedding initialization completed. Success: {}, Failed: {}", successCount, failCount);
+    }
+    
+    /**
+     * 构建用于生成 embedding 的文本
+     */
+    private String buildEmbeddingText(Indicator indicator) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(indicator.getIndicatorName());
+        
+        if (indicator.getRemark() != null && !indicator.getRemark().isEmpty()) {
+            sb.append(" ").append(indicator.getRemark());
+        }
+        
+        if (indicator.getTags() != null && !indicator.getTags().isEmpty()) {
+            sb.append(" ").append(indicator.getTags().replace(",", " "));
+        }
+        
+        return sb.toString();
+    }
 }
