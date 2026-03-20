@@ -1,17 +1,12 @@
 package com.metric.analyst.agent.agents;
 
 import com.metric.analyst.agent.dto.MetricComparisonDTO;
-import com.metric.analyst.agent.dto.MetricRankingDTO;
-import com.metric.analyst.agent.dto.MetricTrendDTO;
+import com.metric.analyst.agent.entity.Indicator;
 import com.metric.analyst.agent.entity.IndicatorFact;
-import com.metric.analyst.agent.service.DataQueryService;
-import com.metric.analyst.agent.service.DimensionNormalizationService;
-import com.metric.analyst.agent.service.IndicatorRecognitionService;
+import com.metric.analyst.agent.service.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -22,30 +17,25 @@ import java.util.stream.Collectors;
 /**
  * 指标查询工具类 - 使用 @Tool 注解定义工具
  * 基于 Spring AI Alibaba 官方最佳实践
+ * 
+ * 解耦设计：依赖 IndicatorLocator 接口而非具体的 IndicatorRecognitionService
+ * 避免循环依赖：IndicatorRecognitionService -> ChatModel -> Tools -> ...
  */
 @Slf4j
 @Component
 public class MetricQueryTools {
 
-    @Autowired
-    @Lazy
-    private IndicatorRecognitionService recognitionService;
+    private final IndicatorLocator indicatorLocator;
+    private final DimensionNormalizationService dimensionService;
+    private final DataQueryService dataQueryService;
 
-    @Autowired
-    private DimensionNormalizationService dimensionService;
-
-    @Autowired
-    private DataQueryService dataQueryService;
-
-    // 指标名称映射
-    private static final Map<String, String> METRIC_NAME_MAP = Map.ofEntries(
-            Map.entry("招聘数量", "I_RPA_ICN_RAE_POSITION_NUM"),
-            Map.entry("平均薪资", "I_RPA_ICN_RAE_SALARY_AMOUNT"),
-            Map.entry("招聘", "I_RPA_ICN_RAE_POSITION_NUM"),
-            Map.entry("薪资", "I_RPA_ICN_RAE_SALARY_AMOUNT"),
-            Map.entry("企业新增", "I_RPA_ICN_ECO_SPE_COMPANY_ADD_NUM"),
-            Map.entry("企业注销", "I_RPA_ICN_ECO_SPE_COMPANY_CANCEL_NUM")
-    );
+    public MetricQueryTools(IndicatorLocator indicatorLocator,
+                            DimensionNormalizationService dimensionService,
+                            DataQueryService dataQueryService) {
+        this.indicatorLocator = indicatorLocator;
+        this.dimensionService = dimensionService;
+        this.dataQueryService = dataQueryService;
+    }
 
     // 地区名称映射
     private static final Map<String, String> REGION_NAME_MAP = Map.ofEntries(
@@ -72,13 +62,15 @@ public class MetricQueryTools {
 
         log.info("查询指标当前值: metric={}, region={}", metricName, regionName);
 
-        // 使用识别服务找到指标
-        IndicatorRecognitionService.RecognitionResult recognition = 
-            recognitionService.recognize(regionName + metricName);
+        // 使用 locator 找到指标（解耦，不依赖 RecognitionService）
+        IndicatorLocator.RecognitionResult recognition = 
+            indicatorLocator.recognize(regionName + metricName);
         
         if (!recognition.isMatched()) {
             return "未找到指标: " + metricName + "。可用指标：招聘数量、平均薪资";
         }
+
+        Indicator indicator = recognition.getIndicator();
 
         // 标准化维度
         Map<String, Object> dims = new HashMap<>();
@@ -87,14 +79,14 @@ public class MetricQueryTools {
         
         DimensionNormalizationService.NormalizedDimensions normalized = 
             dimensionService.normalize(
-                recognition.getIndicator().getIndicatorId(),
-                recognition.getIndicator().getTableId(),
+                indicator.getIndicatorId(),
+                indicator.getTableId(),
                 dims
             );
 
         // 查询数据
         DataQueryService.QueryResult result = dataQueryService.query(
-            recognition.getIndicator().getTableId(),
+            indicator.getTableId(),
             normalized
         );
 
@@ -128,14 +120,15 @@ public class MetricQueryTools {
 
         log.info("对比指标: metric={}, regions={}", metricName, regionNames);
 
-        // 使用识别服务找到指标
-        IndicatorRecognitionService.RecognitionResult recognition = 
-            recognitionService.recognize(regionNames + metricName);
+        // 使用 locator 找到指标
+        IndicatorLocator.RecognitionResult recognition = 
+            indicatorLocator.recognize(metricName);
         
         if (!recognition.isMatched()) {
             return "未找到指标: " + metricName;
         }
 
+        Indicator indicator = recognition.getIndicator();
         String[] regions = regionNames.split("[，,]");
         List<MetricComparisonDTO.RegionData> dataList = new ArrayList<>();
 
@@ -148,13 +141,13 @@ public class MetricQueryTools {
             
             DimensionNormalizationService.NormalizedDimensions normalized = 
                 dimensionService.normalize(
-                    recognition.getIndicator().getIndicatorId(),
-                    recognition.getIndicator().getTableId(),
+                    indicator.getIndicatorId(),
+                    indicator.getTableId(),
                     dims
                 );
 
             DataQueryService.QueryResult result = dataQueryService.query(
-                recognition.getIndicator().getTableId(),
+                indicator.getTableId(),
                 normalized
             );
 
@@ -206,13 +199,15 @@ public class MetricQueryTools {
         if (months <= 0) months = 6;
         if (months > 24) months = 24;
 
-        // 使用识别服务找到指标
-        IndicatorRecognitionService.RecognitionResult recognition = 
-            recognitionService.recognize(regionName + metricName + "近" + months + "个月");
+        // 使用 locator 找到指标
+        IndicatorLocator.RecognitionResult recognition = 
+            indicatorLocator.recognize(regionName + metricName + "近" + months + "个月");
         
         if (!recognition.isMatched()) {
             return "未找到指标: " + metricName;
         }
+
+        Indicator indicator = recognition.getIndicator();
 
         Map<String, Object> dims = new HashMap<>();
         dims.put("region", regionName);
@@ -220,13 +215,13 @@ public class MetricQueryTools {
         
         DimensionNormalizationService.NormalizedDimensions normalized = 
             dimensionService.normalize(
-                recognition.getIndicator().getIndicatorId(),
-                recognition.getIndicator().getTableId(),
+                indicator.getIndicatorId(),
+                indicator.getTableId(),
                 dims
             );
 
         DataQueryService.QueryResult result = dataQueryService.query(
-            recognition.getIndicator().getTableId(),
+            indicator.getTableId(),
             normalized
         );
 
@@ -289,27 +284,29 @@ public class MetricQueryTools {
         if (topN <= 0) topN = 5;
         if (topN > 20) topN = 20;
 
-        // 使用识别服务找到指标 - 地区级别查询
-        IndicatorRecognitionService.RecognitionResult recognition = 
-            recognitionService.recognize("各省份" + metricName);
+        // 使用 locator 找到指标
+        IndicatorLocator.RecognitionResult recognition = 
+            indicatorLocator.recognize("各省份" + metricName);
         
         if (!recognition.isMatched()) {
             return "未找到指标: " + metricName;
         }
 
+        Indicator indicator = recognition.getIndicator();
+
         Map<String, Object> dims = new HashMap<>();
-        dims.put("region", "各省份");  // 触发省级分组查询
+        dims.put("region", "各省份");
         dims.put("time", "latest");
         
         DimensionNormalizationService.NormalizedDimensions normalized = 
             dimensionService.normalize(
-                recognition.getIndicator().getIndicatorId(),
-                recognition.getIndicator().getTableId(),
+                indicator.getIndicatorId(),
+                indicator.getTableId(),
                 dims
             );
 
         DataQueryService.QueryResult result = dataQueryService.query(
-            recognition.getIndicator().getTableId(),
+            indicator.getTableId(),
             normalized
         );
 
@@ -347,11 +344,10 @@ public class MetricQueryTools {
         Set<String> foundMetrics = new HashSet<>();
         Set<String> foundRegions = new HashSet<>();
 
-        // 匹配指标
-        for (String key : METRIC_NAME_MAP.keySet()) {
-            if (userInput.contains(key)) {
-                foundMetrics.add(key);
-            }
+        // 尝试识别指标
+        IndicatorLocator.RecognitionResult recognition = indicatorLocator.recognize(userInput);
+        if (recognition.isMatched()) {
+            foundMetrics.add(recognition.getIndicator().getIndicatorName());
         }
 
         // 匹配地区
