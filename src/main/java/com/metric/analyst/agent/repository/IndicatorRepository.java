@@ -19,4 +19,6 @@ public interface IndicatorRepository extends JpaRepository<Indicator, Long> {
     List<Indicator> searchByFulltext(String keyword);
 
     List<Indicator> findByIndexedTrue();
+
+    List<Indicator> findByIndicatorNameContaining(String keyword);
 }

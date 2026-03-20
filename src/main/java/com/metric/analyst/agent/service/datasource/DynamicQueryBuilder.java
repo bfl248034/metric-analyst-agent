@@ -62,7 +62,7 @@ public class DynamicQueryBuilder {
         sql.append(" WHERE 1=1");
         
         // 处理时间维度
-        DimensionNormalizationService.DimensionValue timeDim = normalizedDimensions.getDimensionValue("time");
+        DimensionValue timeDim = normalizedDimensions.getDimensionValue("time");
         if (timeDim != null && timeDim.getValueCode() != null) {
             String timeCode = timeDim.getValueCode();
             
@@ -91,13 +91,13 @@ public class DynamicQueryBuilder {
         Map<String, DataDimension> dimConfigMap = dimensions.stream()
             .collect(Collectors.toMap(DataDimension::getDimensionId, d -> d, (a, b) -> a));
         
-        Map<String, DimensionNormalizationService.DimensionValue> allDims = new HashMap<>();
+        Map<String, DimensionValue> allDims = new HashMap<>();
         allDims.putAll(normalizedDimensions.getExplicitDimensions());
         allDims.putAll(normalizedDimensions.getImplicitDimensions());
         
-        for (Map.Entry<String, DimensionNormalizationService.DimensionValue> entry : allDims.entrySet()) {
+        for (Map.Entry<String, DimensionValue> entry : allDims.entrySet()) {
             String dimId = entry.getKey();
-            DimensionNormalizationService.DimensionValue dimValue = entry.getValue();
+            DimensionValue dimValue = entry.getValue();
             
             if ("time".equals(dimId)) {
                 continue; // 时间已处理

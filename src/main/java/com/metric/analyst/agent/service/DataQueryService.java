@@ -3,6 +3,7 @@ package com.metric.analyst.agent.service;
 import com.metric.analyst.agent.entity.DataDimension;
 import com.metric.analyst.agent.entity.DataSource;
 import com.metric.analyst.agent.entity.DataTable;
+import com.metric.analyst.agent.entity.DimensionValue;
 import com.metric.analyst.agent.repository.DataDimensionRepository;
 import com.metric.analyst.agent.repository.DataSourceRepository;
 import com.metric.analyst.agent.repository.DataTableRepository;
@@ -62,7 +63,7 @@ public class DataQueryService {
             List<DataDimension> dimensionConfigs = dataDimensionRepository.findByTableId(tableId);
             
             // 4. 检查是否为排名查询
-            DimensionNormalizationService.DimensionValue regionDim = dimensions.getDimensionValue("region");
+            DimensionValue regionDim = dimensions.getDimensionValue("region");
             if (regionDim != null && isRegionLevelQuery(regionDim.getValueCode())) {
                 return executeRankingQuery(dataTable, dataSource, dimensionConfigs, regionDim.getValueCode());
             }
