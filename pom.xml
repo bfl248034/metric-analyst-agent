@@ -128,6 +128,19 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- HikariCP 连接池 -->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+        </dependency>
+
+        <!-- Apache Kylin JDBC 驱动 -->
+        <dependency>
+            <groupId>org.apache.kylin</groupId>
+            <artifactId>kylin-jdbc</artifactId>
+            <version>4.0.0</version>
+        </dependency>
+
         <!-- H2 内存数据库 (仅用于测试) -->
         <dependency>
             <groupId>com.h2database</groupId>

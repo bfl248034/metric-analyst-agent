@@ -2,7 +2,6 @@ package com.metric.analyst.agent.agents;
 
 import com.metric.analyst.agent.dto.MetricComparisonDTO;
 import com.metric.analyst.agent.entity.Indicator;
-import com.metric.analyst.agent.entity.IndicatorFact;
 import com.metric.analyst.agent.service.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
@@ -84,27 +83,30 @@ public class MetricQueryTools {
                 dims
             );
 
-        // 查询数据
+        // 查询数据（使用新的动态数据源架构）
         DataQueryService.QueryResult result = dataQueryService.query(
             indicator.getTableId(),
             normalized
         );
 
-        if (!result.isSuccess() || result.getFacts().isEmpty()) {
+        if (!result.isSuccess() || result.getRows() == null || result.getRows().isEmpty()) {
             return String.format("未找到 %s 在 %s 的数据", metricName, regionName);
         }
+
+        // 从新的 DataRow 结构获取数据
+        DataQueryService.DataRow latestRow = result.getRows().get(0);
 
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("%s的%s数据：\n", regionName, metricName));
         sb.append(String.format("- 数值：%s %s\n",
-                result.getLatestValue() != null ? result.getLatestValue().toPlainString() : "N/A",
+                latestRow.getValue() != null ? latestRow.getValue().toPlainString() : "N/A",
                 getUnit(metricName)));
 
-        if (result.getLatestYoy() != null) {
-            sb.append(String.format("- 同比增长：%.1f%%\n", result.getLatestYoy()));
+        if (latestRow.getYoy() != null) {
+            sb.append(String.format("- 同比增长：%.1f%%\n", latestRow.getYoy()));
         }
-        if (result.getLatestMom() != null) {
-            sb.append(String.format("- 环比增长：%.1f%%\n", result.getLatestMom()));
+        if (latestRow.getMom() != null) {
+            sb.append(String.format("- 环比增长：%.1f%%\n", latestRow.getMom()));
         }
 
         return sb.toString();
@@ -151,9 +153,10 @@ public class MetricQueryTools {
                 normalized
             );
 
-            if (result.isSuccess() && result.getLatestValue() != null) {
+            if (result.isSuccess() && result.getRows() != null && !result.getRows().isEmpty()) {
+                DataQueryService.DataRow row = result.getRows().get(0);
                 dataList.add(new MetricComparisonDTO.RegionData(
-                        regionName, result.getLatestValue(), result.getLatestYoy()));
+                        regionName, row.getValue(), row.getYoy()));
             }
         }
 
@@ -225,46 +228,47 @@ public class MetricQueryTools {
             normalized
         );
 
-        if (!result.isSuccess() || result.getFacts().isEmpty()) {
+        if (!result.isSuccess() || result.getRows() == null || result.getRows().isEmpty()) {
             return String.format("未找到 %s 在 %s 的历史数据", metricName, regionName);
         }
 
-        List<IndicatorFact> facts = result.getFacts().stream()
-            .sorted(Comparator.comparing(IndicatorFact::getTimeId))
-            .collect(Collectors.toList());
+        List<DataQueryService.DataRow> rows = result.getRows();
+        
+        // 按时间排序
+        rows.sort(Comparator.comparing(DataQueryService.DataRow::getTimeId));
 
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("%s的%s趋势（最近%d个月）：\n\n",
-                regionName, metricName, facts.size()));
+                regionName, metricName, rows.size()));
 
         // 计算最大值用于图表
-        BigDecimal maxValue = facts.stream()
-                .map(IndicatorFact::getFactValue)
+        BigDecimal maxValue = rows.stream()
+                .map(DataQueryService.DataRow::getValue)
                 .filter(Objects::nonNull)
                 .max(Comparator.naturalOrder())
                 .orElse(BigDecimal.ONE);
 
-        for (IndicatorFact fact : facts) {
-            String timeStr = fact.getTimeId().toString();
-            String bar = generateBar(fact.getFactValue(), maxValue, 15);
+        for (DataQueryService.DataRow row : rows) {
+            String timeStr = row.getTimeId();
+            String bar = generateBar(row.getValue(), maxValue, 15);
             sb.append(String.format("%s: %s %s %s",
                     timeStr,
-                    fact.getFactValue() != null ? fact.getFactValue().toPlainString() : "N/A",
+                    row.getValue() != null ? row.getValue().toPlainString() : "N/A",
                     getUnit(metricName),
                     bar));
-            if (fact.getValueMom() != null) {
-                String momSymbol = fact.getValueMom().compareTo(BigDecimal.ZERO) > 0 ? "↑" : "↓";
-                sb.append(String.format(" (%s%.1f%%)", momSymbol, fact.getValueMom().abs().doubleValue()));
+            if (row.getMom() != null) {
+                String momSymbol = row.getMom().compareTo(BigDecimal.ZERO) > 0 ? "↑" : "↓";
+                sb.append(String.format(" (%s%.1f%%)", momSymbol, row.getMom().abs().doubleValue()));
             }
             sb.append("\n");
         }
 
         // 添加汇总统计
-        BigDecimal avgValue = facts.stream()
-                .map(IndicatorFact::getFactValue)
+        BigDecimal avgValue = rows.stream()
+                .map(DataQueryService.DataRow::getValue)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .divide(BigDecimal.valueOf(facts.size()), 2, RoundingMode.HALF_UP);
+                .divide(BigDecimal.valueOf(rows.size()), 2, RoundingMode.HALF_UP);
 
         sb.append(String.format("\n平均值: %s %s", avgValue.toPlainString(), getUnit(metricName)));
 
@@ -295,7 +299,7 @@ public class MetricQueryTools {
         Indicator indicator = recognition.getIndicator();
 
         Map<String, Object> dims = new HashMap<>();
-        dims.put("region", "各省份");
+        dims.put("region", "省级");  // 触发省级分组排名查询
         dims.put("time", "latest");
         
         DimensionNormalizationService.NormalizedDimensions normalized = 
@@ -310,16 +314,17 @@ public class MetricQueryTools {
             normalized
         );
 
-        if (!result.isSuccess() || result.getRanking().isEmpty()) {
+        if (!result.isSuccess() || result.getRanking() == null || result.getRanking().isEmpty()) {
             return "未找到排名数据";
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%s地区排名（前%d名）：\n\n", metricName, Math.min(topN, result.getRanking().size())));
+        sb.append(String.format("%s地区排名（前%d名）：\n\n", metricName, 
+                Math.min(topN, result.getRanking().size())));
 
         BigDecimal maxValue = result.getRanking().get(0).getValue();
         for (int i = 0; i < Math.min(topN, result.getRanking().size()); i++) {
-            DataQueryService.QueryResult.RankingItem item = result.getRanking().get(i);
+            DataQueryService.RankingItem item = result.getRanking().get(i);
             String medal = i < 3 ? new String[]{"🥇", "🥈", "🥉"}[i] : String.format("%d.", i + 1);
             String bar = generateBar(item.getValue(), maxValue, 15);
 
