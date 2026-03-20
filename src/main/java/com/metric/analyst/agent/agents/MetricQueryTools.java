@@ -7,10 +7,11 @@ import com.metric.analyst.agent.entity.IndicatorFact;
 import com.metric.analyst.agent.service.DataQueryService;
 import com.metric.analyst.agent.service.DimensionNormalizationService;
 import com.metric.analyst.agent.service.IndicatorRecognitionService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -24,12 +25,17 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class MetricQueryTools {
 
-    private final IndicatorRecognitionService recognitionService;
-    private final DimensionNormalizationService dimensionService;
-    private final DataQueryService dataQueryService;
+    @Autowired
+    @Lazy
+    private IndicatorRecognitionService recognitionService;
+
+    @Autowired
+    private DimensionNormalizationService dimensionService;
+
+    @Autowired
+    private DataQueryService dataQueryService;
 
     // 指标名称映射
     private static final Map<String, String> METRIC_NAME_MAP = Map.ofEntries(
