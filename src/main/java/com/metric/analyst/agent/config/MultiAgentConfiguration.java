@@ -3,17 +3,20 @@ package com.metric.analyst.agent.config;
 import com.alibaba.cloud.ai.graph.agent.ReactAgent;
 import com.alibaba.cloud.ai.graph.agent.flow.agent.SupervisorAgent;
 import com.alibaba.cloud.ai.graph.agent.hook.skills.SkillsAgentHook;
-import com.alibaba.cloud.ai.graph.agent.hook.skills.registry.SkillRegistry;
-import com.alibaba.cloud.ai.graph.agent.hook.skills.registry.classpath.ClasspathSkillRegistry;
+import com.alibaba.cloud.ai.graph.skills.registry.SkillRegistry;
+import com.alibaba.cloud.ai.graph.skills.registry.classpath.ClasspathSkillRegistry;
 import com.alibaba.cloud.ai.graph.checkpoint.savers.MemorySaver;
 import com.metric.analyst.agent.hooks.ChitchatHook;
 import com.metric.analyst.agent.interceptor.PerformanceInterceptor;
-import com.metric.analyst.agent.tools.MetricQueryTools;
+import com.metric.analyst.agent.agents.MetricQueryTools;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -77,14 +80,16 @@ public class MultiAgentConfiguration {
                                        SkillsAgentHook skillsHook,
                                        ChitchatHook chitchatHook,
                                        PerformanceInterceptor performanceInterceptor) {
-        
+
+        List<ToolCallback> toolCallbacks = Arrays.asList(ToolCallbacks.from(queryTools));
+
         return ReactAgent.builder()
             .name("metric-query-agent")
             .model(chatModel)
             .description("专门处理指标数据查询，支持当前值、趋势、排名、对比")
             .instruction("""
                 你是指标查询专家。请按以下步骤处理用户请求：
-                
+
                 1. 识别用户想查询的指标和维度（地区/时间/学历等）
                 2. 使用 normalizeDimensions 标准化维度值
                 3. 根据查询类型选择合适的工具：
@@ -93,10 +98,10 @@ public class MultiAgentConfiguration {
                    - 排名查询 → queryRanking
                    - 对比查询 → queryComparison
                 4. 返回结构化的数据结果
-                
+
                 可用指标：招聘薪资、岗位数量、企业数量、专利申请等
                 """)
-            .tools(queryTools)
+            .tools(toolCallbacks)
             .hooks(List.of(skillsHook, chitchatHook))
             .interceptors(performanceInterceptor)
             .saver(new MemorySaver())
@@ -110,22 +115,24 @@ public class MultiAgentConfiguration {
     public ReactAgent insightAnalysisAgent(ChatModel chatModel,
                                            MetricQueryTools queryTools,
                                            SkillsAgentHook skillsHook) {
-        
+
+        List<ToolCallback> toolCallbacks = Arrays.asList(ToolCallbacks.from(queryTools));
+
         return ReactAgent.builder()
             .name("insight-analysis-agent")
             .model(chatModel)
             .description("基于查询结果进行深度洞察分析")
             .instruction("""
                 你是数据分析专家。基于查询结果提供深度洞察：
-                
+
                 1. 分析数据的趋势和规律
                 2. 识别异常和亮点
                 3. 进行多维度对比分析
                 4. 提供业务见解和建议
-                
+
                 使用工具获取所需数据，然后进行分析解读。
                 """)
-            .tools(queryTools)
+            .tools(toolCallbacks)
             .hooks(List.of(skillsHook))
             .saver(new MemorySaver())
             .build();
@@ -138,22 +145,24 @@ public class MultiAgentConfiguration {
     public ReactAgent reportGenerationAgent(ChatModel chatModel,
                                             MetricQueryTools queryTools,
                                             SkillsAgentHook skillsHook) {
-        
+
+        List<ToolCallback> toolCallbacks = Arrays.asList(ToolCallbacks.from(queryTools));
+
         return ReactAgent.builder()
             .name("report-generation-agent")
             .model(chatModel)
             .description("生成专业的数据分析报告")
             .instruction("""
                 你是报告生成专家。根据用户需求生成专业报告：
-                
+
                 1. 收集相关数据（多指标、多维度）
                 2. 组织报告结构（摘要、正文、结论）
                 3. 生成可视化建议
                 4. 输出格式化的报告内容
-                
+
                 报告应包含数据摘要、趋势分析、对比结论。
                 """)
-            .tools(queryTools)
+            .tools(toolCallbacks)
             .hooks(List.of(skillsHook))
             .saver(new MemorySaver())
             .build();

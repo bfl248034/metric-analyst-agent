@@ -1,9 +1,9 @@
 ---
 name: metric-analysis
-description: 分析各类业务指标数据，支持单指标查询、多地区对比、趋势分析和排名查询。基于五阶段处理流程的完整分析技能。
+description: 指标查询与分析专家。支持单指标查询、多地区对比、趋势分析、排名查询，并提供深度洞察分析。
 ---
 
-# Metric Analysis Skill - 指标分析技能
+# Metric Analysis Skill - 指标查询与分析技能
 
 ## 元数据
 - **名称**: metric-analysis
