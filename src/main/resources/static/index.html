@@ -3,70 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Metric Analyst - 数据分析智能体</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <title>Metric Analyst - 多智能体数据分析平台</title>
+    <link rel="stylesheet" href="/css/multi-agent.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="app-container">
-        <!-- 侧边栏 -->
+        <!-- 左侧边栏 -->
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <span class="logo-icon">📊</span>
-                    <span class="logo-text">Metric Analyst</span>
+                    <div class="logo-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                        </svg>
+                    </div>
+                    <div class="logo-text">
+                        <span class="logo-title">Metric Analyst</span>
+                        <span class="logo-subtitle">多智能体协作平台</span>
+                    </div>
                 </div>
                 <button class="new-chat-btn" onclick="startNewChat()">
-                    <span>+</span> 新对话
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"/>
+                        <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    新对话
                 </button>
             </div>
             
+            <!-- Agent 状态面板 -->
             <div class="sidebar-section">
-                <h3>可查询领域</h3>
-                <div class="domain-list">
-                    <div class="domain-item" data-domain="recruitment">
-                        <span class="domain-icon">📈</span>
-                        <span>招聘就业</span>
+                <h3 class="section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                        <polyline points="2 17 12 22 22 17"/>
+                        <polyline points="2 12 12 17 22 12"/>
+                    </svg>
+                    智能体状态
+                </h3>
+                <div class="agent-status-list">
+                    <div class="agent-status-item" id="supervisor-status">
+                        <div class="agent-avatar supervisor">
+                            <span>S</span>
+                        </div>
+                        <div class="agent-info">
+                            <span class="agent-name">Supervisor</span>
+                            <span class="agent-role">主协调者</span>
+                        </div>
+                        <span class="status-badge idle">待机</span>
                     </div>
-                    <div class="domain-item" data-domain="enterprise">
-                        <span class="domain-icon">🏢</span>
-                        <span>市场主体</span>
+                    <div class="agent-status-item" id="query-status">
+                        <div class="agent-avatar query">
+                            <span>Q</span>
+                        </div>
+                        <div class="agent-info">
+                            <span class="agent-name">Query Agent</span>
+                            <span class="agent-role">数据查询</span>
+                        </div>
+                        <span class="status-badge idle">待机</span>
                     </div>
-                    <div class="domain-item" data-domain="ip">
-                        <span class="domain-icon">💡</span>
-                        <span>知识产权</span>
+                    <div class="agent-status-item" id="insight-status">
+                        <div class="agent-avatar insight">
+                            <span>I</span>
+                        </div>
+                        <div class="agent-info">
+                            <span class="agent-name">Insight Agent</span>
+                            <span class="agent-role">洞察分析</span>
+                        </div>
+                        <span class="status-badge idle">待机</span>
                     </div>
-                    <div class="domain-item" data-domain="procurement">
-                        <span class="domain-icon">🛒</span>
-                        <span>政府采购</span>
+                    <div class="agent-status-item" id="report-status">
+                        <div class="agent-avatar report">
+                            <span>R</span>
+                        </div>
+                        <div class="agent-info">
+                            <span class="agent-name">Report Agent</span>
+                            <span class="agent-role">报告生成</span>
+                        </div>
+                        <span class="status-badge idle">待机</span>
                     </div>
                 </div>
             </div>
 
+            <!-- 可用技能 -->
             <div class="sidebar-section">
-                <h3>示例问题</h3>
-                <div class="example-list">
-                    <div class="example-item" onclick="sendExample('北京招聘薪资怎么样？')">
-                        北京招聘薪资怎么样？
+                <h3 class="section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                    </svg>
+                    可用技能
+                </h3>
+                <div class="skill-list">
+                    <div class="skill-item" data-skill="metric-analysis">
+                        <span class="skill-icon">📊</span>
+                        <span class="skill-name">指标分析</span>
                     </div>
-                    <div class="example-item" onclick="sendExample('各省份企业新增排名')">
-                        各省份企业新增排名
+                    <div class="skill-item" data-skill="data-insight">
+                        <span class="skill-icon">🔍</span>
+                        <span class="skill-name">数据洞察</span>
                     </div>
-                    <div class="example-item" onclick="sendExample('近6个月专利趋势')">
-                        近6个月专利趋势
+                    <div class="skill-item" data-skill="data-retrieval">
+                        <span class="skill-icon">🗄️</span>
+                        <span class="skill-name">数据检索</span>
                     </div>
-                    <div class="example-item" onclick="sendExample('上海本科平均薪酬')">
-                        上海本科平均薪酬
+                    <div class="skill-item" data-skill="dimension-parse">
+                        <span class="skill-icon">🎯</span>
+                        <span class="skill-name">维度解析</span>
                     </div>
+                </div>
+            </div>
+
+            <!-- 历史会话 -->
+            <div class="sidebar-section">
+                <h3 class="section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    历史会话
+                </h3>
+                <div class="history-list" id="historyList">
+                    <!-- 动态生成 -->
                 </div>
             </div>
 
             <div class="sidebar-footer">
-                <div class="status-indicator">
+                <div class="system-status">
                     <span class="status-dot online"></span>
                     <span>系统运行正常</span>
                 </div>
+                <div class="version">v2.0.0</div>
             </div>
         </aside>
 
@@ -74,16 +143,47 @@
         <main class="chat-container">
             <!-- 头部 -->
             <header class="chat-header">
-                <div class="header-title">
-                    <h1>数据分析助手</h1>
-                    <span class="session-id" id="sessionId"></span>
+                <div class="header-left">
+                    <button class="menu-btn" onclick="toggleSidebar()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="3" y1="12" x2="21" y2="12"/>
+                            <line x1="3" y1="6" x2="21" y2="6"/>
+                            <line x1="3" y1="18" x2="21" y2="18"/>
+                        </svg>
+                    </button>
+                    <div class="header-info">
+                        <h1>数据分析助手</h1>
+                        <div class="session-info">
+                            <span class="session-id" id="sessionId"></span>
+                            <span class="divider">|</span>
+                            <span class="message-count" id="messageCount">0 条消息</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="header-actions">
+                    <button class="icon-btn" onclick="toggleReasoningPanel()" title="推理过程">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                        </svg>
+                    </button>
                     <button class="icon-btn" onclick="toggleTheme()" title="切换主题">
-                        🌙
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="5"/>
+                            <line x1="12" y1="1" x2="12" y2="3"/>
+                            <line x1="12" y1="21" x2="12" y2="23"/>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                            <line x1="1" y1="12" x2="3" y2="12"/>
+                            <line x1="21" y1="12" x2="23" y2="12"/>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                        </svg>
                     </button>
                     <button class="icon-btn" onclick="clearChat()" title="清空对话">
-                        🗑️
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                        </svg>
                     </button>
                 </div>
             </header>
@@ -91,29 +191,70 @@
             <!-- 消息区域 -->
             <div class="messages-container" id="messagesContainer">
                 <!-- 欢迎消息 -->
-                <div class="message welcome-message">
-                    <div class="message-avatar">
-                        <span>🤖</span>
-                    </div>
-                    <div class="message-content">
-                        <div class="message-header">
-                            <span class="message-author">Metric Analyst</span>
-                            <span class="message-time">刚刚</span>
+                <div class="message-group welcome">
+                    <div class="message system-message">
+                        <div class="message-avatar">
+                            <div class="agent-avatar supervisor">
+                                <span>S</span>
+                            </div>
                         </div>
-                        <div class="message-body">
-                            <p>你好！我是<strong>Metric Analyst（数据分析智能体）</strong>，你的专业数据助手。</p>
-                            <p>我可以帮您查询以下领域的数据：</p>
-                            <ul>
-                                <li>📈 <strong>招聘就业</strong> - 岗位数量、平均薪酬、招聘企业</li>
-                                <li>🏢 <strong>市场主体</strong> - 新增、注销、在营企业</li>
-                                <li>💡 <strong>知识产权</strong> - 专利申请</li>
-                                <li>🛒 <strong>政府采购</strong> - 金额、数量、均价</li>
-                            </ul>
-                            <p>💬 <strong>试试这样问：</strong></p>
-                            <div class="quick-actions">
-                                <button onclick="sendExample('北京招聘薪资')">北京招聘薪资</button>
-                                <button onclick="sendExample('各省份企业新增排名')">各省份企业新增排名</button>
-                                <button onclick="sendExample('近6个月专利趋势')">近6个月专利趋势</button>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <span class="message-author">Supervisor Agent</span>
+                                <span class="message-badge coordinator">协调者</span>
+                                <span class="message-time">刚刚</span>
+                            </div>
+                            <div class="message-body">
+                                <div class="welcome-content">
+                                    <h2>👋 欢迎使用 Metric Analyst</h2>
+                                    <p>我是 <strong>Supervisor Agent</strong>，负责协调多个专业智能体为您服务。</p>
+                                    
+                                    <div class="agent-team">
+                                        <h3>🤖 我的团队</h3>
+                                        <div class="team-grid">
+                                            <div class="team-member">
+                                                <div class="member-avatar query">Q</div>
+                                                <span class="member-name">Query Agent</span>
+                                                <span class="member-desc">数据查询专家</span>
+                                            </div>
+                                            <div class="team-member">
+                                                <div class="member-avatar insight">I</div>
+                                                <span class="member-name">Insight Agent</span>
+                                                <span class="member-desc">洞察分析专家</span>
+                                            </div>
+                                            <div class="team-member">
+                                                <div class="member-avatar report">R</div>
+                                                <span class="member-name">Report Agent</span>
+                                                <span class="member-desc">报告生成专家</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="capabilities">
+                                        <h3>📊 可查询领域</h3>
+                                        <div class="capability-tags">
+                                            <span class="tag">招聘就业</span>
+                                            <span class="tag">市场主体</span>
+                                            <span class="tag">知识产权</span>
+                                            <span class="tag">政府采购</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="quick-start">
+                                        <h3>💡 快速开始</h3>
+                                        <div class="quick-actions">
+                                            <button onclick="sendExample('北京招聘薪资')">
+                                                <span>📈</span> 北京招聘薪资
+                                            </button>
+                                            <button onclick="sendExample('各省份企业新增排名')">
+                                                <span>🏢</span> 企业新增排名
+                                            </button>
+                                            <button onclick="sendExample('分析近6个月专利趋势')">
+                                                <span>🔍</span> 专利趋势分析
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -122,35 +263,97 @@
 
             <!-- 输入区域 -->
             <div class="input-container">
+                <div class="input-toolbar">
+                    <button class="toolbar-btn" title="上传文件">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+                        </svg>
+                    </button>
+                    <button class="toolbar-btn" title="选择技能" onclick="showSkillSelector()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                        </svg>
+                        技能
+                    </button>
+                </div>
                 <div class="input-wrapper">
                     <textarea 
                         id="messageInput" 
-                        placeholder="输入您的问题，例如：北京招聘薪资怎么样？"
+                        placeholder="输入您的问题，我将协调最合适的智能体为您服务..."
                         rows="1"
                         onkeydown="handleKeyDown(event)"
                         oninput="autoResize(this)"
                     ></textarea>
                     <button class="send-btn" onclick="sendMessage()" id="sendBtn">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                            <line x1="22" y1="2" x2="11" y2="13"/>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
                         </svg>
                     </button>
                 </div>
-                <div class="input-hint">
-                    <span>按 Enter 发送，Shift + Enter 换行</span>
+                <div class="input-footer">
+                    <span class="input-hint">按 Enter 发送，Shift + Enter 换行</span>
+                    <span class="model-info">Spring AI Alibaba + ReactAgent</span>
                 </div>
             </div>
         </main>
+
+        <!-- 右侧推理过程面板 -->
+        <aside class="reasoning-panel" id="reasoningPanel">
+            <div class="panel-header">
+                <h3>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                    推理过程
+                </h3>
+                <button class="close-btn" onclick="toggleReasoningPanel()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="panel-content" id="reasoningContent">
+                <div class="reasoning-placeholder">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                    <p>发送消息后，这里将显示智能体的推理过程</p>
+                </div>
+            </div>
+        </aside>
     </div>
 
-    <!-- 加载动画 -->
+    <!-- 加载遮罩 -->
     <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-spinner">
-            <div class="spinner"></div>
-            <p>正在处理...</p>
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p id="loadingText">正在协调智能体...</p>
         </div>
     </div>
 
-    <script src="/js/app.js"></script>
+    <!-- 技能选择弹窗 -->
+    <div class="modal" id="skillModal">
+        <div class="modal-overlay" onclick="hideSkillSelector()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>选择技能</h3>
+                <button class="close-btn" onclick="hideSkillSelector()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="skill-grid" id="skillGrid">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/multi-agent.js"></script>
 </body>
 </html>
